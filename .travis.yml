@@ -13,7 +13,8 @@ php:
   - hhvm
 
 install:
-  - composer update --prefer-dist
+  - composer install --prefer-dist
+  - npm install
 
 script:
   - vendor/bin/phpunit --coverage-clover=coverage.xml
