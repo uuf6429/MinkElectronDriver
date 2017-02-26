@@ -17,7 +17,7 @@ class WebDriverTest extends TestCase
     {
         parent::setUp();
 
-        $this->driver = new ElectronDriver();
+        $this->driver = new ElectronDriver(true);
         $this->driver->start();
     }
 
@@ -62,5 +62,48 @@ class WebDriverTest extends TestCase
     {
         $this->expectException(UnsupportedDriverActionException::class);
         $this->driver->maximizeWindow();
+    }
+
+    public function testOverwritingCookies()
+    {
+        $this->driver->visit('http://google.com');
+
+        $this->driver->setCookie('test1', 'ccc');
+        $this->driver->setCookie('test2', 'bbb');
+        $this->driver->setCookie('test1', 'aaa');
+        $this->assertSame('aaa', $this->driver->getCookie('test1'));
+        $this->assertSame('bbb', $this->driver->getCookie('test2'));
+    }
+
+    public function testResettingCookies()
+    {
+        $this->driver->visit('http://google.com');
+
+        $this->driver->setCookie('test1', 'aaa');
+        $this->driver->reset();
+        $this->assertSame(null, $this->driver->getCookie('test1'));
+    }
+
+    public function testPersistingCookies()
+    {
+        $this->driver->visit('http://google.com');
+        $this->driver->setCookie('test1', 'aaa');
+
+        $this->driver->visit('http://bing.com');
+        $this->assertSame(null, $this->driver->getCookie('test1'));
+
+        $this->driver->visit('http://google.com');
+        $this->assertSame('aaa', $this->driver->getCookie('test1'));
+    }
+
+    public function testResponseCodeAndContent()
+    {
+        $this->driver->visit('https://httpbin.org/xml');
+        $this->assertSame(200, $this->driver->getStatusCode());
+        $this->assertContains('Wake up to WonderWidgets!', $this->driver->getContent());
+
+        $this->driver->visit('https://httpbin.org/status/500');
+        $this->assertSame(500, $this->driver->getStatusCode());
+        $this->assertSame('', $this->driver->getContent());
     }
 }

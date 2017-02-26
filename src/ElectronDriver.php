@@ -145,17 +145,11 @@ class ElectronDriver extends CoreDriver
     }
 
     /**
-     * Sets HTTP Basic authentication parameters.
-     *
-     * @param string|Boolean $user user name or false to disable authentication
-     * @param string $password password
-     *
-     * @throws UnsupportedDriverActionException When operation not supported by the driver
-     * @throws DriverException                  When the operation cannot be done
+     * @inheritdoc
      */
     public function setBasicAuth($user, $password)
     {
-        // TODO: Implement setBasicAuth() method.
+        $this->sendAndWaitWithoutResult('setBasicAuth', [$user, $password]);
     }
 
     /**
@@ -212,58 +206,71 @@ class ElectronDriver extends CoreDriver
     }
 
     /**
-     * Sets cookie.
-     *
-     * @param string $name
-     * @param string $value
-     *
-     * @throws UnsupportedDriverActionException When operation not supported by the driver
-     * @throws DriverException                  When the operation cannot be done
+     * @inheritdoc
      */
     public function setCookie($name, $value = null)
     {
-        // TODO: Implement setCookie() method.
+        $this->sendAndWaitWithoutResult('setCookie', [$name, $value]);
+        $result = $this->waitForCookieResponse();
+
+        if (!array_key_exists('set', $result) || !empty($result['error']) || !$result['set']) {
+            throw new DriverException(
+                sprintf(
+                    'Cookie "%s" could not be set. Response: %s',
+                    $name,
+                    json_encode($result)
+                )
+            );
+        }
     }
 
     /**
-     * Returns cookie by name.
-     *
-     * @param string $name
-     *
-     * @return string|null
-     *
-     * @throws UnsupportedDriverActionException When operation not supported by the driver
-     * @throws DriverException                  When the operation cannot be done
+     * @inheritdoc
      */
     public function getCookie($name)
     {
-        // TODO: Implement getCookie() method.
+        $this->sendAndWaitWithoutResult('getCookie', [$name]);
+        $result = $this->waitForCookieResponse();
+
+        if (!array_key_exists('get', $result) || !empty($result['error'])) {
+            throw new DriverException(
+                sprintf(
+                    'Cookie "%s" could not be get. Response: %s',
+                    $name,
+                    json_encode($result)
+                )
+            );
+        }
+
+        return $result['get'];
     }
 
     /**
-     * Returns last response status code.
-     *
-     * @return int
-     *
-     * @throws UnsupportedDriverActionException When operation not supported by the driver
-     * @throws DriverException                  When the operation cannot be done
+     * @inheritdoc
      */
     public function getStatusCode()
     {
-        // TODO: Implement getStatusCode() method.
+        return $this->sendAndWaitWithResult('getStatusCode');
     }
 
     /**
-     * Returns last response content.
-     *
-     * @return string
-     *
-     * @throws UnsupportedDriverActionException When operation not supported by the driver
-     * @throws DriverException                  When the operation cannot be done
+     * @inheritdoc
      */
     public function getContent()
     {
-        // TODO: Implement getContent() method.
+        $started = $this->sendAndWaitWithResult('getContent');
+
+        if (!$started) {
+            throw new DriverException('Could not start saving page content.');
+        }
+
+        $result = $this->waitForGetContentResponse();
+
+        if(isset($result['error'])){
+            throw new DriverException('Could saving page content: ' . $result['error']);
+        }
+
+        return $result['content'];
     }
 
     /**
@@ -816,5 +823,29 @@ class ElectronDriver extends CoreDriver
         while (!$this->sendAndWaitWithResult('visited')) {
             usleep(50000);
         }
+    }
+
+    /**
+     * @return array
+     */
+    protected function waitForCookieResponse()
+    {
+        while (($result = $this->sendAndWaitWithResult('getCookieResponse')) === null) {
+            usleep(1000);
+        }
+
+        return $result;
+    }
+
+    /**
+     * @return array
+     */
+    protected function waitForGetContentResponse()
+    {
+        while (($result = $this->sendAndWaitWithResult('getContentResponse')) === null) {
+            usleep(1000);
+        }
+
+        return $result;
     }
 }
