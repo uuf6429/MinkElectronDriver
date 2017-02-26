@@ -1,6 +1,6 @@
 {
-  "name": "uuf6429/MinkNightmareDriver",
-  "description": "Mink Nightmare Driver",
+  "name": "uuf6429/MinkElectronDriver",
+  "description": "Mink Electron Driver",
   "minimum-stability": "stable",
   "license": "MIT",
   "authors": [

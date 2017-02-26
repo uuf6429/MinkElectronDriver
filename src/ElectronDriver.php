@@ -9,7 +9,7 @@ use DnodeSyncClient\Connection;
 use Symfony\Component\Process\Process;
 use DnodeSyncClient\Dnode;
 
-class NightmareDriver extends CoreDriver
+class ElectronDriver extends CoreDriver
 {
     /**
      * @var Process
@@ -27,17 +27,42 @@ class NightmareDriver extends CoreDriver
     protected $nodeClient;
 
     /**
+     * @var string
+     */
+    protected $nodeOutput = '';
+
+    /**
+     * @var bool
+     */
+    protected $debug;
+
+    /**
+     * @param bool $debug
+     */
+    public function __construct($debug = false)
+    {
+        $this->debug = $debug;
+    }
+
+    /**
      * @inheritdoc
      */
     public function start()
     {
         try {
+            $this->nodeOutput = '';
             // TODO add more config options (eg; node path, env vars, args, etc)
             $this->nodeProcess = new Process($this->buildServerCmd(), dirname(__DIR__));
             $this->nodeProcess->setTimeout(null);
-            $this->nodeProcess->start(/*function($type, $output) {
-                echo $output;
-            }*/);
+
+            if(!$this->debug){
+                $this->nodeProcess->disableOutput();
+            }
+
+            $this->nodeProcess->start(function($type, $output) {
+                $this->nodeOutput .= strtoupper($type) . '> ' . $output;
+            });
+
             $this->nodeClient = (new Dnode())->connect('127.0.0.1', $this->nodePort);
         } catch (\Exception $ex) {
             throw new DriverException('Error while starting: ' . $ex->getMessage(), $ex->getCode(), $ex);
@@ -49,7 +74,8 @@ class NightmareDriver extends CoreDriver
      */
     public function isStarted()
     {
-        return $this->nodeProcess->isStarted();
+        return $this->nodeProcess->isStarted()
+            /*&& !$this->nodeClient->isClosed()*/;
     }
 
     /**
@@ -80,6 +106,7 @@ class NightmareDriver extends CoreDriver
     public function visit($url)
     {
         $this->sendAndWaitWithoutResult('visit', [$url]);
+        $this->waitForVisited();
     }
 
     /**
@@ -96,6 +123,7 @@ class NightmareDriver extends CoreDriver
     public function reload()
     {
         $this->sendAndWaitWithoutResult('reload');
+        $this->waitForVisited();
     }
 
     /**
@@ -104,6 +132,7 @@ class NightmareDriver extends CoreDriver
     public function forward()
     {
         $this->sendAndWaitWithoutResult('forward');
+        $this->waitForVisited();
     }
 
     /**
@@ -112,6 +141,7 @@ class NightmareDriver extends CoreDriver
     public function back()
     {
         $this->sendAndWaitWithoutResult('back');
+        $this->waitForVisited();
     }
 
     /**
@@ -716,11 +746,13 @@ class NightmareDriver extends CoreDriver
      */
     protected function buildServerCmd()
     {
-        // TODO Probably we can just do "NightmareServer <socket>" thanks to npm "bin" option... not sure though
+        // TODO Probably we can just do "ElectronServer <socket>" thanks to npm "bin" option... not sure though
         return sprintf(
-            'node %s %s',
-            escapeshellarg(__DIR__ . DIRECTORY_SEPARATOR . 'NightmareServer.js'),
-            escapeshellarg($this->nodePort)
+            '%s %s %s%s',
+            escapeshellarg(__DIR__ . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . 'node_modules' . DIRECTORY_SEPARATOR . '.bin' . DIRECTORY_SEPARATOR . 'electron'),
+            escapeshellarg(__DIR__ . DIRECTORY_SEPARATOR . 'ElectronServer.js'),
+            escapeshellarg($this->nodePort),
+            $this->debug ? ' debug' : ''
         );
     }
 
@@ -768,6 +800,21 @@ class NightmareDriver extends CoreDriver
                     var_export($result, true)
                 )
             );
+        }
+    }
+
+    /**
+     * @return string
+     */
+    public function getServerOutput()
+    {
+        return $this->nodeOutput;
+    }
+
+    protected function waitForVisited()
+    {
+        while (!$this->sendAndWaitWithResult('visited')) {
+            usleep(50000);
         }
     }
 }

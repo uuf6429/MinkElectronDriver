@@ -2,9 +2,9 @@
 
 namespace Behat\Mink\Tests\Driver;
 
-use Behat\Mink\Driver\NightmareDriver;
+use Behat\Mink\Driver\ElectronDriver;
 
-class NightmareConfig extends AbstractConfig
+class ElectronConfig extends AbstractConfig
 {
     public static function getInstance()
     {
@@ -16,7 +16,7 @@ class NightmareConfig extends AbstractConfig
      */
     public function createDriver()
     {
-        return new NightmareDriver();
+        return new ElectronDriver();
     }
 
     /**
@@ -28,7 +28,7 @@ class NightmareConfig extends AbstractConfig
             'Behat\Mink\Tests\Driver\Js\WindowTest' === $testCase
             && in_array($test, array('testResizeWindow', 'testWindowMaximize'))
         ) {
-            return 'Nightmare driver does not support window resizing.';
+            return 'Electron driver does not support window resizing.';
         }
 
         if (
@@ -36,7 +36,7 @@ class NightmareConfig extends AbstractConfig
             && 'testWindowMaximize' === $test
             && 'true' === getenv('TRAVIS')
         ) {
-            return 'Nightmare driver does not support window maximizing.';
+            return 'Electron driver does not support window maximizing.';
         }
 
         return parent::skipMessage($testCase, $test);

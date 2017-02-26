@@ -2,14 +2,14 @@
 
 namespace Behat\Mink\Tests\Driver\Custom;
 
-use Behat\Mink\Driver\NightmareDriver;
+use Behat\Mink\Driver\ElectronDriver;
 use Behat\Mink\Exception\UnsupportedDriverActionException;
 use PHPUnit\Framework\TestCase;
 
 class WebDriverTest extends TestCase
 {
     /**
-     * @var NightmareDriver
+     * @var ElectronDriver
      */
     protected $driver;
 
@@ -17,7 +17,7 @@ class WebDriverTest extends TestCase
     {
         parent::setUp();
 
-        $this->driver = new NightmareDriver();
+        $this->driver = new ElectronDriver();
         $this->driver->start();
     }
 
@@ -25,14 +25,26 @@ class WebDriverTest extends TestCase
     {
         $this->driver->stop();
 
+        if ($this->hasFailed()) {
+            echo 'Server Output:' . PHP_EOL . $this->driver->getServerOutput();
+        }
+
         parent::tearDown();
     }
 
-    public function testCanNavigateToGoogle()
+    public function testNavigation()
     {
         $this->driver->visit('http://google.com/');
+        $this->assertContains('www.google', $this->driver->getCurrentUrl());
 
-        $this->assertContains('google.com', $this->driver->getCurrentUrl());
+        $this->driver->visit('http://bing.com/');
+        $this->assertContains('www.bing', $this->driver->getCurrentUrl());
+
+        $this->driver->back();
+        $this->assertContains('www.google', $this->driver->getCurrentUrl());
+
+        $this->driver->forward();
+        $this->assertContains('www.bing', $this->driver->getCurrentUrl());
     }
 
     public function testDriverHasStarted()
