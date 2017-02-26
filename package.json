@@ -1,0 +1,17 @@
+{
+  "name": "NightmareDriver",
+  "description": "NightmareDriver Server",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/uuf6429/MinkNightmareDriver.git"
+  },
+  "dependencies": {
+    "nightmare": "~2.10.0",
+    "nightmare-upload": "~0.1.1",
+    "nightmare-wait-for-url": "~0.0.2",
+    "dnode": "~1.2.2"
+  },
+  "main": "nigtmare-server",
+  "bin" : "./src/NightmareServer.js"
+}
