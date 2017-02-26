@@ -5,12 +5,18 @@ namespace Behat\Mink\Driver;
 use Behat\Mink\Element\NodeElement;
 use Behat\Mink\Exception\DriverException;
 use Behat\Mink\Exception\UnsupportedDriverActionException;
+use Behat\Mink\Session;
 use DnodeSyncClient\Connection;
 use Symfony\Component\Process\Process;
 use DnodeSyncClient\Dnode;
 
 class ElectronDriver extends CoreDriver
 {
+    /**
+     * @var Session
+     */
+    protected $session;
+
     /**
      * @var Process
      */
@@ -42,6 +48,14 @@ class ElectronDriver extends CoreDriver
     public function __construct($debug = false)
     {
         $this->debug = $debug;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function setSession(Session $session)
+    {
+        $this->session = $session;
     }
 
     /**
@@ -325,7 +339,14 @@ class ElectronDriver extends CoreDriver
      */
     public function find($xpath)
     {
-        // TODO: Implement find() method.
+        $matchingXPaths = []; // TODO get from server
+
+        return array_map(
+            function ($xpath) {
+                return new NodeElement($xpath, $this->session);
+            },
+            $matchingXPaths
+        );
     }
 
     /**
@@ -370,7 +391,10 @@ class ElectronDriver extends CoreDriver
      */
     public function getHtml($xpath)
     {
-        // TODO: Implement getHtml() method.
+        return $this->evaluateScriptWithArgs(
+            'document.evaluate(path, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue.innerHTML',
+            ['path' => $xpath]
+        );
     }
 
     /**
@@ -385,7 +409,10 @@ class ElectronDriver extends CoreDriver
      */
     public function getOuterHtml($xpath)
     {
-        // TODO: Implement getOuterHtml() method.
+        return $this->evaluateScriptWithArgs(
+            'document.evaluate(path, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue.outerHTML',
+            ['path' => $xpath]
+        );
     }
 
     /**
@@ -401,7 +428,10 @@ class ElectronDriver extends CoreDriver
      */
     public function getAttribute($xpath, $name)
     {
-        // TODO: Implement getAttribute() method.
+        return $this->evaluateScriptWithArgs(
+            'document.evaluate(path, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue.getAttribute(name)',
+            ['path' => $xpath, 'name' => $name]
+        );
     }
 
     /**
@@ -687,50 +717,43 @@ class ElectronDriver extends CoreDriver
     }
 
     /**
-     * Executes JS script.
-     *
-     * @param string $script
-     *
-     * @throws UnsupportedDriverActionException When operation not supported by the driver
-     * @throws DriverException                  When the operation cannot be done
+     * @inheritdoc
      */
     public function executeScript($script)
     {
-        // TODO: Implement executeScript() method.
+        $this->evaluateScript($script); // ignoring expression result ain't so hard
     }
 
     /**
-     * Evaluates JS script.
-     *
-     * The "return" keyword is optional in the script passed as argument. Driver implementations
-     * must accept the expression both with and without the keyword.
-     *
-     * @param string $script
-     *
-     * @return mixed
-     *
-     * @throws UnsupportedDriverActionException When operation not supported by the driver
-     * @throws DriverException                  When the operation cannot be done
+     * @inheritdoc
      */
     public function evaluateScript($script)
     {
-        // TODO: Implement evaluateScript() method.
+        $this->sendAndWaitWithoutResult('evaluateScript', [$script]);
+
+        $result = $this->waitForEvaluateScriptResponse();
+
+        if(isset($result['error'])){
+            throw new DriverException('Could not evaluate script: ' . $result['error']);
+        }
+
+        return $result['result'];
     }
 
     /**
-     * Waits some time or until JS condition turns true.
-     *
-     * @param int $timeout timeout in milliseconds
-     * @param string $condition JS condition
-     *
-     * @return bool
-     *
-     * @throws UnsupportedDriverActionException When operation not supported by the driver
-     * @throws DriverException                  When the operation cannot be done
+     * @inheritdoc
      */
     public function wait($timeout, $condition)
     {
-        // TODO: Implement wait() method.
+        $start = microtime(true);
+        $end = $start + ($timeout / 1000);
+
+        do {
+            $result = $this->evaluateScript($condition);
+            usleep(1000);
+        } while (microtime(true) < $end && !$result);
+
+        return (bool)$result;
     }
 
     /**
@@ -847,5 +870,35 @@ class ElectronDriver extends CoreDriver
         }
 
         return $result;
+    }
+
+    /**
+     * @return array
+     */
+    protected function waitForEvaluateScriptResponse()
+    {
+        while (($result = $this->sendAndWaitWithResult('getEvaluateScriptResponse')) === null) {
+            usleep(500);
+        }
+
+        return $result;
+    }
+
+    /**
+     * @param string $script
+     * @param array<string, mixed> $args
+     * @return mixed
+     * @example $driver->evaluateScriptWithArgs('a * b', ['a' => 5, 'b' => 6])
+     */
+    protected function evaluateScriptWithArgs($script, $args)
+    {
+        return $this->evaluateScript(
+            sprintf(
+                '(function(%s){ %s })(%s)',
+                implode(', ', array_keys($args)),
+                $script,
+                implode(', ', array_map('json_encode', array_values($args)))
+            )
+        );
     }
 }

@@ -106,4 +106,11 @@ class WebDriverTest extends TestCase
         $this->assertSame(500, $this->driver->getStatusCode());
         $this->assertSame('', $this->driver->getContent());
     }
+
+    public function testScriptExecution()
+    {
+        $this->driver->visit('https://httpbin.org/status/200');
+        $this->assertSame(20, $this->driver->evaluateScript('5 * 4'));
+        $this->assertSame(4.6, $this->driver->evaluateScript('2.3 * 2'));
+    }
 }

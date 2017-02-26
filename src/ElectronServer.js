@@ -5,6 +5,10 @@ if (process.argv.length < 3
     throw('Correct usage is: electron ElectronServer.js <port> [debug]');
 }
 
+process.on('uncaughtException', function (err) {
+    console.error(err);
+});
+
 const Electron = require('electron'),
     DNode = require('dnode'),
     Temp = require('temp'),
@@ -14,12 +18,13 @@ const Electron = require('electron'),
 var debug = process.argv[3] === 'debug';
 
 Electron.app.on('ready', function(){
-    var window = new Electron.BrowserWindow({show: debug}),
+    var window = new Electron.BrowserWindow({'show': debug}),
         pageVisited = false,
         auth = {'user': false, 'pass': null},
         lastStatusCode = null,
         lastContentPath = null,
         lastContentSaved = null,
+        executeResponse = null,
         cookieResponse = null,
         setupPageVisited = function () {
             pageVisited = false;
@@ -123,12 +128,12 @@ Electron.app.on('ready', function(){
                 cookieResponse = null;
                 window.webContents.session.cookies.set( // TODO if value is null call remove cookie?
                     {
-                        url: window.webContents.getURL(),
-                        name: name,
-                        value: value
+                        'url': window.webContents.getURL(),
+                        'name': name,
+                        'value': value
                     },
                     function (error) {
-                        cookieResponse = {set: !error, error: (error || '').toString()};
+                        cookieResponse = {'set': !error, 'error': (error || '').toString()};
                     }
                 );
 
@@ -141,11 +146,11 @@ Electron.app.on('ready', function(){
                 cookieResponse = null;
                 window.webContents.session.cookies.get(
                     {
-                        url: window.webContents.getURL(),
-                        name: name
+                        'url': window.webContents.getURL(),
+                        'name': name
                     },
                     function (error, cookies) {
-                        cookieResponse = {get: cookies.length ? cookies[0].value : null, error: (error || '').toString()};
+                        cookieResponse = {'get': cookies.length ? cookies[0].value : null, 'error': (error || '').toString()};
                     }
                 );
 
@@ -166,7 +171,7 @@ Electron.app.on('ready', function(){
 
             getContent: function (cb) {
                 lastContentSaved = null;
-                lastContentPath = Temp.path({suffix: '.data'});
+                lastContentPath = Temp.path({'suffix': '.data'});
                 var started = window.webContents.savePage(lastContentPath, 'HTMLOnly', function (error) {
                     lastContentSaved = error || true;
                 });
@@ -181,9 +186,9 @@ Electron.app.on('ready', function(){
 
                 if (lastContentSaved) {
                     if (lastContentSaved === true) {
-                        lastContent = {content: FS.readFileSync(lastContentPath).toString()};
+                        lastContent = {'content': FS.readFileSync(lastContentPath).toString()};
                     } else {
-                        lastContent = {error: lastContentSaved};
+                        lastContent = {'error': lastContentSaved};
                     }
 
                     FS.unlink(lastContentPath);
@@ -192,6 +197,30 @@ Electron.app.on('ready', function(){
                 if (debug) console.log('getContentResponse() => %s (reading from %s)', lastContent, lastContentPath);
 
                 cb(lastContent);
+            },
+
+            evaluateScript: function (script, cb) {
+                if (debug) console.log('evaluateScript(%s)', script);
+
+                executeResponse = null;
+
+                window.webContents
+                    .executeJavaScript(script, true)
+                    .then(function (result) {
+                        executeResponse = {'result': result};
+                    })
+                    .catch(function (error) {
+                        executeResponse = {'error': error.toString()};
+                    })
+                ;
+
+                cb();
+            },
+
+            getEvaluateScriptResponse: function (cb) {
+                if (debug) console.log('getEvaluateScriptResponse() => %s', executeResponse);
+
+                cb(executeResponse);
             },
 
             getScreenshot: function () {
