@@ -7,6 +7,7 @@ use Behat\Mink\Exception\DriverException;
 use Behat\Mink\Exception\UnsupportedDriverActionException;
 use Behat\Mink\Session;
 use DnodeSyncClient\Connection;
+use DnodeSyncClient\IOException;
 use Symfony\Component\Process\Process;
 use DnodeSyncClient\Dnode;
 
@@ -20,22 +21,27 @@ class ElectronDriver extends CoreDriver
     /**
      * @var Process
      */
-    protected $nodeProcess;
-
-    /**
-     * @var int
-     */
-    protected $nodePort = 6666;
-
-    /**
-     * @var Connection
-     */
-    protected $nodeClient;
+    protected $electronProcess;
 
     /**
      * @var string
      */
-    protected $nodeOutput = '';
+    protected $electronClientAddress = 'localhost:6666';
+
+    /**
+     * @var string
+     */
+    protected $electronServerAddress = '0.0.0.0:6666';
+
+    /**
+     * @var Connection
+     */
+    protected $dnodeClient;
+
+    /**
+     * @var string
+     */
+    protected $serverOutput = '';
 
     /**
      * @var bool
@@ -64,20 +70,54 @@ class ElectronDriver extends CoreDriver
     public function start()
     {
         try {
-            $this->nodeOutput = '';
+            $this->serverOutput = '';
             // TODO add more config options (eg; node path, env vars, args, etc)
-            $this->nodeProcess = new Process($this->buildServerCmd(), dirname(__DIR__));
-            $this->nodeProcess->setTimeout(null);
+            $this->electronProcess = new Process($this->buildServerCmd(), dirname(__DIR__));
+            $this->electronProcess->setTimeout(null);
 
-            if(!$this->debug){
-                $this->nodeProcess->disableOutput();
+            if (!$this->debug) {
+                $this->electronProcess->disableOutput();
             }
 
-            $this->nodeProcess->start(function($type, $output) {
-                $this->nodeOutput .= strtoupper($type) . '> ' . $output;
+            $this->electronProcess->start(function ($type, $output) {
+                $this->serverOutput .= strtoupper($type) . '> ' . $output;
             });
 
-            $this->nodeClient = (new Dnode())->connect('127.0.0.1', $this->nodePort);
+            $address = [];
+            if (!preg_match('/(.*):(\d+)/', $this->electronClientAddress, $address)) {
+                throw new DriverException('Could not parse the supplied address, expected "host:port".');
+            }
+
+            $maxTries = 10;
+            for ($currTry = 1; $currTry <= $maxTries; $currTry++) {
+                if (!$this->electronProcess->isRunning()) {
+                    throw new DriverException(
+                        sprintf(
+                            "Electron server process quit unexpectedly.\nExit Code: %d\nOutput: %s",
+                            $this->electronProcess->getExitCode(),
+                            $this->debug ? $this->getServerOutput() : 'None; debug disabled.'
+                        )
+                    );
+                }
+
+                try {
+                    $this->dnodeClient = (new Dnode())->connect($address[1], $address[2]);
+                    break;
+                } catch (IOException $ex) {
+                    if ($currTry == $maxTries) {
+                        $exitCode = $this->electronProcess->stop();
+                        throw new DriverException(
+                            sprintf(
+                                "Gave up connecting to electron server after %d tries.\nExit Code: %d\nOutput: %s",
+                                $currTry,
+                                $exitCode,
+                                $this->debug ? $this->getServerOutput() : 'None; debug disabled.'
+                            ), 0, $ex
+                        );
+                    }
+                    usleep(500000);
+                }
+            }
         } catch (\Exception $ex) {
             throw new DriverException('Error while starting: ' . $ex->getMessage(), $ex->getCode(), $ex);
         }
@@ -88,8 +128,10 @@ class ElectronDriver extends CoreDriver
      */
     public function isStarted()
     {
-        return $this->nodeProcess->isStarted()
-            /*&& !$this->nodeClient->isClosed()*/;
+        return $this->electronProcess
+            && $this->electronProcess->isStarted()
+            /*&& !$this->dnodeClient->isClosed()*/
+        ;
     }
 
     /**
@@ -98,8 +140,8 @@ class ElectronDriver extends CoreDriver
     public function stop()
     {
         try {
-            $this->nodeClient->close();
-            $this->nodeProcess->stop();
+            $this->dnodeClient->close();
+            $this->electronProcess->stop();
         } catch (\Exception $ex) {
             throw new DriverException('Error while stopping: ' . $ex->getMessage(), $ex->getCode(), $ex);
         }
@@ -280,7 +322,7 @@ class ElectronDriver extends CoreDriver
 
         $result = $this->waitForGetContentResponse();
 
-        if(isset($result['error'])){
+        if (isset($result['error'])) {
             throw new DriverException('Could saving page content: ' . $result['error']);
         }
 
@@ -733,7 +775,7 @@ class ElectronDriver extends CoreDriver
 
         $result = $this->waitForEvaluateScriptResponse();
 
-        if(isset($result['error'])){
+        if (isset($result['error'])) {
             throw new DriverException('Could not evaluate script: ' . $result['error']);
         }
 
@@ -781,7 +823,7 @@ class ElectronDriver extends CoreDriver
             '%s %s %s%s',
             escapeshellarg(__DIR__ . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . 'node_modules' . DIRECTORY_SEPARATOR . '.bin' . DIRECTORY_SEPARATOR . 'electron'),
             escapeshellarg(__DIR__ . DIRECTORY_SEPARATOR . 'ElectronServer.js'),
-            escapeshellarg($this->nodePort),
+            escapeshellarg($this->electronServerAddress),
             $this->debug ? ' debug' : ''
         );
     }
@@ -794,7 +836,7 @@ class ElectronDriver extends CoreDriver
      */
     protected function sendAndWaitWithResult($mtd, $args = [])
     {
-        $result = $this->nodeClient->call($mtd, $args);
+        $result = $this->dnodeClient->call($mtd, $args);
 
         if (count($result) !== 1) {
             throw new DriverException(
@@ -818,7 +860,7 @@ class ElectronDriver extends CoreDriver
      */
     protected function sendAndWaitWithoutResult($mtd, $args = [])
     {
-        $result = $this->nodeClient->call($mtd, $args);
+        $result = $this->dnodeClient->call($mtd, $args);
 
         if (count($result) !== 0) {
             throw new DriverException(
@@ -838,7 +880,7 @@ class ElectronDriver extends CoreDriver
      */
     public function getServerOutput()
     {
-        return $this->nodeOutput;
+        return $this->serverOutput;
     }
 
     protected function waitForVisited()
@@ -886,7 +928,7 @@ class ElectronDriver extends CoreDriver
 
     /**
      * @param string $script
-     * @param array<string, mixed> $args
+     * @param array <string, mixed> $args
      * @return mixed
      * @example $driver->evaluateScriptWithArgs('a * b', ['a' => 5, 'b' => 6])
      */

@@ -2,7 +2,7 @@ if (process.argv.length < 3
     || process.argv.length > 4
     || !process.versions['electron']
 ) {
-    throw('Correct usage is: electron ElectronServer.js <port> [debug]');
+    throw('Correct usage is: electron ElectronServer.js <host:port> [debug]');
 }
 
 process.on('uncaughtException', function (err) {
@@ -265,5 +265,6 @@ Electron.app.on('ready', function(){
         }
     );
 
-    server.listen(parseInt(process.argv[2]));
+    var address = /(.*):(\d+)/.exec(process.argv[2]);
+    server.listen(address[1], parseInt(address[2]));
 });
