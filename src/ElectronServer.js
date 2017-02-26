@@ -1,5 +1,8 @@
-if (process.argv.length != 3 && process.argv.length != 4) {
-    throw('Correct usage is: node ElectronServer.js <port> [debug]');
+if (process.argv.length < 3
+    || process.argv.length > 4
+    || !process.versions['electron']
+) {
+    throw('Correct usage is: electron ElectronServer.js <port> [debug]');
 }
 
 const Electron = require('electron');
