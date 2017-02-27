@@ -10,6 +10,7 @@ process.on('uncaughtException', function (err) {
 });
 
 const Electron = require('electron'),
+    BrowserWindow = Electron.BrowserWindow,
     DNode = require('dnode'),
     Temp = require('temp'),
     FS = require('fs')
@@ -17,8 +18,9 @@ const Electron = require('electron'),
 
 var debug = process.argv[3] === 'debug';
 
-Electron.app.on('ready', function(){
-    var window = new Electron.BrowserWindow({'show': debug}),
+Electron.app.on('ready', function() {
+    var mainWindow = new BrowserWindow({'show': debug}),
+        currWindow = mainWindow,
         pageVisited = false,
         auth = {'user': false, 'pass': null},
         lastStatusCode = null,
@@ -26,7 +28,10 @@ Electron.app.on('ready', function(){
         lastContentSaved = null,
         executeResponse = null,
         cookieResponse = null,
-        setupPageVisited = function () {
+        /**
+         * @param {Electron.BrowserWindow} window
+         */
+        setupPageVisited = function (window) {
             pageVisited = false;
             lastStatusCode = null;
 
@@ -35,29 +40,39 @@ Electron.app.on('ready', function(){
                 console.log('Loaded');
             });
         }
-    ;
+        ;
 
-    window.webContents
-        .on('login', function(event, webContents, request, authInfo, callback) {
-            if(auth.user !== false) {
-                event.preventDefault();
-                callback(auth.user, auth.pass);
-            }
-        })
-        .on('did-get-response-details', function(event, status, newURL, originalURL, httpResponseCode, requestMethod, referrer, headers, resourceType) {
-            lastStatusCode = httpResponseCode;
-//            lastHeaders = headers;
-            //apparently we can't get the last body :(
-        })
-    ;
+    Electron.app.on(
+        'browser-window-created',
+        /**
+         * @param event
+         * @param {Electron.BrowserWindow} window
+         */
+        function (event, window) {
+            window.webContents
+                .on('login', function (event, webContents, request, authInfo, callback) {
+                    if (auth.user !== false) {
+                        event.preventDefault();
+                        callback(auth.user, auth.pass);
+                    }
+                })
+                .on('did-get-response-details', function (event, status, newURL, originalURL, httpResponseCode, requestMethod, referrer, headers, resourceType) {
+                    lastStatusCode = httpResponseCode;
+//                    lastHeaders = headers;
+                })
+            ;
+        }
+    );
+    Electron.app.emit('browser-window-created', null, mainWindow);
 
+    //noinspection JSUnusedGlobalSymbols
     var server = DNode(
         {
             visit: function (url, cb) {
                 if (debug) console.log('visit(%s)', url);
 
-                setupPageVisited();
-                window.loadURL(url);
+                setupPageVisited(currWindow);
+                currWindow.loadURL(url);
 
                 cb();
             },
@@ -69,32 +84,32 @@ Electron.app.on('ready', function(){
             },
 
             getCurrentUrl: function (cb) {
-                if (debug) console.log('getCurrentUrl() => %s', window.webContents.getURL());
+                if (debug) console.log('getCurrentUrl() => %s', currWindow.webContents.getURL());
 
-                cb(window.webContents.getURL().toString());
+                cb(currWindow.webContents.getURL().toString());
             },
 
             reload: function (cb) {
                 if (debug) console.log('reload()');
 
-                setupPageVisited();
-                window.webContents.reload();
+                setupPageVisited(currWindow);
+                currWindow.webContents.reload();
                 cb();
             },
 
             back: function (cb) {
                 if (debug) console.log('back()');
 
-                setupPageVisited();
-                window.webContents.goBack();
+                setupPageVisited(currWindow);
+                currWindow.webContents.goBack();
                 cb();
             },
 
             forward: function (cb) {
                 if (debug) console.log('forward()');
 
-                setupPageVisited();
-                window.webContents.goForward();
+                setupPageVisited(currWindow);
+                currWindow.webContents.goForward();
                 cb();
             },
 
@@ -106,8 +121,11 @@ Electron.app.on('ready', function(){
                 cb();
             },
 
-            switchToWindow: function () {
-                // TODO
+            switchToWindow: function (name, cb) {
+                if (debug) console.log('switchToWindow(%s)', parseInt(name));
+
+                currWindow = name === null ? mainWindow : BrowserWindow.fromId(parseInt(name));
+                cb();
             },
 
             switchToIFrame: function () {
@@ -126,9 +144,9 @@ Electron.app.on('ready', function(){
                 if (debug) console.log('setCookie(%s, %s)', name, value);
 
                 cookieResponse = null;
-                window.webContents.session.cookies.set( // TODO if value is null call remove cookie?
+                currWindow.webContents.session.cookies.set( // TODO if value is null call remove cookie?
                     {
-                        'url': window.webContents.getURL(),
+                        'url': currWindow.webContents.getURL(),
                         'name': name,
                         'value': value
                     },
@@ -144,13 +162,16 @@ Electron.app.on('ready', function(){
                 if (debug) console.log('getCookie(%s)', name);
 
                 cookieResponse = null;
-                window.webContents.session.cookies.get(
+                currWindow.webContents.session.cookies.get(
                     {
-                        'url': window.webContents.getURL(),
+                        'url': currWindow.webContents.getURL(),
                         'name': name
                     },
                     function (error, cookies) {
-                        cookieResponse = {'get': cookies.length ? cookies[0].value : null, 'error': (error || '').toString()};
+                        cookieResponse = {
+                            'get': cookies.length ? cookies[0].value : null,
+                            'error': (error || '').toString()
+                        };
                     }
                 );
 
@@ -172,7 +193,7 @@ Electron.app.on('ready', function(){
             getContent: function (cb) {
                 lastContentSaved = null;
                 lastContentPath = Temp.path({'suffix': '.data'});
-                var started = window.webContents.savePage(lastContentPath, 'HTMLOnly', function (error) {
+                var started = currWindow.webContents.savePage(lastContentPath, 'HTMLOnly', function (error) {
                     lastContentSaved = error || true;
                 });
 
@@ -204,7 +225,7 @@ Electron.app.on('ready', function(){
 
                 executeResponse = null;
 
-                window.webContents
+                currWindow.webContents
                     .executeJavaScript(script, true)
                     .then(function (result) {
                         executeResponse = {'result': result};
@@ -227,12 +248,22 @@ Electron.app.on('ready', function(){
                 // TODO
             },
 
-            getWindowNames: function () {
-                // TODO
+            getWindowNames: function (cb) {
+                var windowNames = BrowserWindow
+                    .getAllWindows()
+                    .map(function (win) {
+                        return win.id.toString();
+                    });
+
+                if (debug) console.log('getWindowNames() => %s', windowNames);
+
+                cb(windowNames);
             },
 
-            getWindowName: function () {
-                // TODO
+            getWindowName: function (cb) {
+                if (debug) console.log('getWindowName() => %s', currWindow.id.toString());
+
+                cb(currWindow.id.toString());
             },
 
             find: function () {

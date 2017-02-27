@@ -152,6 +152,7 @@ class ElectronDriver extends CoreDriver
      */
     public function reset()
     {
+        // TODO is this correct, or do we just clear session of current window?
         $this->stop();
         $this->start();
     }
@@ -209,16 +210,11 @@ class ElectronDriver extends CoreDriver
     }
 
     /**
-     * Switches to specific browser window.
-     *
-     * @param string $name window name (null for switching back to main window)
-     *
-     * @throws UnsupportedDriverActionException When operation not supported by the driver
-     * @throws DriverException                  When the operation cannot be done
+     * @inheritdoc
      */
     public function switchToWindow($name = null)
     {
-        // TODO: Implement switchToWindow() method.
+        $this->sendAndWaitWithoutResult('switchToWindow', [$name]);
     }
 
     /**
@@ -344,29 +340,19 @@ class ElectronDriver extends CoreDriver
     }
 
     /**
-     * Return the names of all open windows.
-     *
-     * @return array array of all open windows
-     *
-     * @throws UnsupportedDriverActionException When operation not supported by the driver
-     * @throws DriverException                  When the operation cannot be done
+     * @inheritdoc
      */
     public function getWindowNames()
     {
-        // TODO: Implement getWindowNames() method.
+        return $this->sendAndWaitWithResult('getWindowNames');
     }
 
     /**
-     * Return the name of the currently active window.
-     *
-     * @return string the name of the current window
-     *
-     * @throws UnsupportedDriverActionException When operation not supported by the driver
-     * @throws DriverException                  When the operation cannot be done
+     * @inheritdoc
      */
     public function getWindowName()
     {
-        // TODO: Implement getWindowName() method.
+        return $this->sendAndWaitWithResult('getWindowName');
     }
 
     /**
