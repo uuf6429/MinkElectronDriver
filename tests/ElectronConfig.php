@@ -16,7 +16,7 @@ class ElectronConfig extends AbstractConfig
      */
     public function createDriver()
     {
-        return new ElectronDriver();
+        return new ElectronDriver(true);
     }
 
     /**

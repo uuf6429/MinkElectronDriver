@@ -10,7 +10,6 @@
 
     <php>
         <var name="driver_config_factory" value="Behat\Mink\Tests\Driver\ElectronConfig::getInstance" />
-        <server name="DRIVER_URL" value="http://localhost:4444/wd/hub" />
     </php>
 
     <filter>
