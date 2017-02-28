@@ -22,10 +22,12 @@ Electron.app.on('ready', function() {
     var mainWindow = new BrowserWindow({'show': debug}),
         currWindow = mainWindow,
         pageVisited = false,
+        hdrs = {},
         auth = {'user': false, 'pass': null},
         lastStatusCode = null,
         lastContentPath = null,
         lastContentSaved = null,
+        lastHeaders = null,
         executeResponse = null,
         cookieResponse = null,
         /**
@@ -58,7 +60,7 @@ Electron.app.on('ready', function() {
                 })
                 .on('did-get-response-details', function (event, status, newURL, originalURL, httpResponseCode, requestMethod, referrer, headers, resourceType) {
                     lastStatusCode = httpResponseCode;
-//                    lastHeaders = headers;
+                    lastHeaders = headers;
                 })
             ;
         }
@@ -68,11 +70,27 @@ Electron.app.on('ready', function() {
     //noinspection JSUnusedGlobalSymbols
     var server = DNode(
         {
+            reset: function (cb) {
+                if (debug) console.log('reset()');
+
+                hdrs = {};
+                auth = {'user': null, 'pass': ''};
+
+                BrowserWindow.getAllWindows().forEach(function (window) {
+                    window.webContents.session.clearStorageData();
+                });
+
+                cb();
+            },
+
             visit: function (url, cb) {
-                if (debug) console.log('visit(%s)', url);
+                var extraHeaders = '';
+                for (var key in hdrs)extraHeaders += key + ': ' + hdrs[key] + '\n';
+
+                if (debug) console.log('visit(%s) (extraHeaders: %s)', url, extraHeaders.replace(/\n/g, '\\n'));
 
                 setupPageVisited(currWindow);
-                currWindow.loadURL(url);
+                currWindow.loadURL(url, {'extraHeaders': extraHeaders});
 
                 cb();
             },
@@ -132,12 +150,18 @@ Electron.app.on('ready', function() {
                 // TODO
             },
 
-            setRequestHeader: function () {
-                // TODO
+            setRequestHeader: function (name, value, cb) {
+                if (debug) console.log('setRequestHeader(%s, %s)', name, value);
+
+                hdrs[name] = value;
+
+                cb();
             },
 
-            getResponseHeaders: function () {
-                // TODO
+            getResponseHeaders: function (cb) {
+                if (debug) console.log('getResponseHeaders() => %s', JSON.stringify(lastHeaders));
+
+                cb(lastHeaders);
             },
 
             setCookie: function (name, value, cb) {

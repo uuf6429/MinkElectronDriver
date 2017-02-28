@@ -152,9 +152,7 @@ class ElectronDriver extends CoreDriver
      */
     public function reset()
     {
-        // TODO is this correct, or do we just clear session of current window?
-        $this->stop();
-        $this->start();
+        $this->sendAndWaitWithoutResult('reset');
     }
 
     /**
@@ -231,30 +229,19 @@ class ElectronDriver extends CoreDriver
     }
 
     /**
-     * Sets specific request header on client.
-     *
-     * @param string $name
-     * @param string $value
-     *
-     * @throws UnsupportedDriverActionException When operation not supported by the driver
-     * @throws DriverException                  When the operation cannot be done
+     * @inheritdoc
      */
     public function setRequestHeader($name, $value)
     {
-        // TODO: Implement setRequestHeader() method.
+        $this->sendAndWaitWithoutResult('setRequestHeader', [$name, $value]);
     }
 
     /**
-     * Returns last response headers.
-     *
-     * @return array
-     *
-     * @throws UnsupportedDriverActionException When operation not supported by the driver
-     * @throws DriverException                  When the operation cannot be done
+     * @inheritdoc
      */
     public function getResponseHeaders()
     {
-        // TODO: Implement getResponseHeaders() method.
+        return (array)$this->sendAndWaitWithResult('getResponseHeaders');
     }
 
     /**

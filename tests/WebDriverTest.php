@@ -113,4 +113,17 @@ class WebDriverTest extends TestCase
         $this->assertSame(20, $this->driver->evaluateScript('5 * 4'));
         $this->assertSame(4.6, $this->driver->evaluateScript('2.3 * 2'));
     }
+
+    public function testCustomRequestHeader()
+    {
+        $this->driver->setRequestHeader('User-Agent', 'Special Agent 493030398600');
+        $this->driver->visit('https://httpbin.org/user-agent');
+        $this->assertContains('Special Agent 493030398600', $this->driver->getContent());
+    }
+
+    public function testCustomResponseHeader()
+    {
+        $this->driver->visit('https://httpbin.org/response-headers?X-Custom-Response=SomeResponseValue');
+        $this->assertContains('SomeResponseValue', json_encode($this->driver->getResponseHeaders()));
+    }
 }
