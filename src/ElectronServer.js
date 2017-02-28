@@ -19,7 +19,7 @@ const Electron = require('electron'),
 var debug = process.argv[3] === 'debug';
 
 Electron.app.on('ready', function() {
-    var mainWindow = new BrowserWindow({'show': debug}),
+    var mainWindow = new BrowserWindow({'show': debug, 'webPreferences': {'devTools': debug}}),
         currWindow = mainWindow,
         pageVisited = false,
         hdrs = {},
@@ -42,7 +42,7 @@ Electron.app.on('ready', function() {
                 console.log('Loaded');
             });
         }
-        ;
+    ;
 
     Electron.app.on(
         'browser-window-created',
@@ -52,7 +52,7 @@ Electron.app.on('ready', function() {
          */
         function (event, window) {
             window.webContents
-                .on('login', function (event, webContents, request, authInfo, callback) {
+                .on('login', function (event, request, authInfo, callback) {
                     if (auth.user !== false) {
                         event.preventDefault();
                         callback(auth.user, auth.pass);
@@ -74,7 +74,7 @@ Electron.app.on('ready', function() {
                 if (debug) console.log('reset()');
 
                 hdrs = {};
-                auth = {'user': null, 'pass': ''};
+                auth = {'user': false, 'pass': ''};
 
                 BrowserWindow.getAllWindows().forEach(function (window) {
                     window.webContents.session.clearStorageData();
@@ -239,7 +239,7 @@ Electron.app.on('ready', function() {
                     FS.unlink(lastContentPath);
                 }
 
-                if (debug) console.log('getContentResponse() => %s (reading from %s)', lastContent, lastContentPath);
+                if (debug) console.log('getContentResponse() => %s (reading from %s)', JSON.stringify(lastContent), lastContentPath);
 
                 cb(lastContent);
             },

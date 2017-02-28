@@ -140,7 +140,7 @@ class ElectronDriver extends CoreDriver
     public function stop()
     {
         try {
-            $this->dnodeClient->close();
+            @$this->dnodeClient->close();
             $this->electronProcess->stop();
         } catch (\Exception $ex) {
             throw new DriverException('Error while stopping: ' . $ex->getMessage(), $ex->getCode(), $ex);
@@ -204,7 +204,7 @@ class ElectronDriver extends CoreDriver
      */
     public function setBasicAuth($user, $password)
     {
-        $this->sendAndWaitWithoutResult('setBasicAuth', [$user, $password]);
+        $this->sendAndWaitWithoutResult('setBasicAuth', [$user ?: false, $password]);
     }
 
     /**

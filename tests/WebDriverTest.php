@@ -25,11 +25,14 @@ class WebDriverTest extends TestCase
     {
         $this->driver->stop();
 
-        if ($this->hasFailed()) {
-            echo 'Server Output:' . PHP_EOL . $this->driver->getServerOutput();
-        }
-
         parent::tearDown();
+    }
+
+    protected function onNotSuccessfulTest($e)
+    {
+        echo 'Server Output:' . PHP_EOL . $this->driver->getServerOutput();
+
+        parent::onNotSuccessfulTest($e);
     }
 
     public function testNavigation()
