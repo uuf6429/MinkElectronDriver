@@ -64,7 +64,7 @@ class ElectronDriver extends CoreDriver
                 $this->electronProcess->disableOutput();
             }
 
-            $this->electronProcess->start(function ($type, $output) {echo(strtoupper($type) . '> ' . $output);
+            $this->electronProcess->start(function ($type, $output) {
                 $this->serverOutput .= strtoupper($type) . '> ' . $output;
             });
 
