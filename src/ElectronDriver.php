@@ -2,10 +2,8 @@
 
 namespace Behat\Mink\Driver;
 
-use Behat\Mink\Element\NodeElement;
 use Behat\Mink\Exception\DriverException;
 use Behat\Mink\Exception\UnsupportedDriverActionException;
-use Behat\Mink\Session;
 use DnodeSyncClient\Connection;
 use DnodeSyncClient\IOException;
 use Symfony\Component\Process\Process;
@@ -13,11 +11,6 @@ use DnodeSyncClient\Dnode;
 
 class ElectronDriver extends CoreDriver
 {
-    /**
-     * @var Session
-     */
-    protected $session;
-
     /**
      * @var Process
      */
@@ -54,14 +47,6 @@ class ElectronDriver extends CoreDriver
     public function __construct($debug = false)
     {
         $this->debug = $debug;
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function setSession(Session $session)
-    {
-        $this->session = $session;
     }
 
     /**
@@ -340,28 +325,6 @@ class ElectronDriver extends CoreDriver
     public function getWindowName()
     {
         return $this->sendAndWaitWithResult('getWindowName');
-    }
-
-    /**
-     * Finds elements with specified XPath query.
-     *
-     * @param string $xpath
-     *
-     * @return NodeElement[]
-     *
-     * @throws UnsupportedDriverActionException When operation not supported by the driver
-     * @throws DriverException                  When the operation cannot be done
-     */
-    public function find($xpath)
-    {
-        $matchingXPaths = []; // TODO get from server
-
-        return array_map(
-            function ($xpath) {
-                return new NodeElement($xpath, $this->session);
-            },
-            $matchingXPaths
-        );
     }
 
     /**
