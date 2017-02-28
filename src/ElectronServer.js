@@ -78,6 +78,7 @@ Electron.app.on('ready', function() {
 
                 BrowserWindow.getAllWindows().forEach(function (window) {
                     window.webContents.session.clearStorageData();
+                    window.webContents.session.clearAuthCache({ type: 'password' });
                 });
 
                 cb();
@@ -112,6 +113,7 @@ Electron.app.on('ready', function() {
 
                 setupPageVisited(currWindow);
                 currWindow.webContents.reload();
+
                 cb();
             },
 
@@ -120,6 +122,7 @@ Electron.app.on('ready', function() {
 
                 setupPageVisited(currWindow);
                 currWindow.webContents.goBack();
+
                 cb();
             },
 
@@ -128,6 +131,7 @@ Electron.app.on('ready', function() {
 
                 setupPageVisited(currWindow);
                 currWindow.webContents.goForward();
+
                 cb();
             },
 
@@ -136,6 +140,11 @@ Electron.app.on('ready', function() {
 
                 auth.user = user;
                 auth.pass = pass;
+
+                if (user === false) {
+                    currWindow.webContents.session.clearAuthCache({type: 'password'});
+                }
+
                 cb();
             },
 
@@ -143,6 +152,7 @@ Electron.app.on('ready', function() {
                 if (debug) console.log('switchToWindow(%s)', parseInt(name));
 
                 currWindow = name === null ? mainWindow : BrowserWindow.fromId(parseInt(name));
+
                 cb();
             },
 
