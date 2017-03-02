@@ -2,24 +2,59 @@ if (process.argv.length < 3
     || process.argv.length > 4
     || !process.versions['electron']
 ) {
-    throw('Correct usage is: electron ElectronServer.js <host:port> [debug]');
+    throw('Correct usage is: electron ElectronServer.js <host:port> [show]');
 }
-
-process.on('uncaughtException', function (err) {
-    console.error(err);
-});
 
 const Electron = require('electron'),
     BrowserWindow = Electron.BrowserWindow,
     DNode = require('dnode'),
     Temp = require('temp'),
-    FS = require('fs')
+    FS = require('fs'),
+    Util = require('util'),
+    // See PSR-3 LogLevel constants.
+    // TODO in the future, support switching log format (console|json)
+    Logger = {
+        log: function(level, message, context) {
+            context = context || {};
+            context.srcTime = Date.now() / 1000;
+            process.stdout.write(JSON.stringify({
+                    'level': level,
+                    'message': message,
+                    'context': context
+                }) + '\n');
+        },
+        debug: function(){
+            this.log('debug', Util.format.apply(null, arguments));
+        },
+        info: function(message, context){
+            this.log('info', Util.format.apply(null, arguments));
+        },
+        warn: function(message, context){
+            this.log('warning', Util.format.apply(null, arguments));
+        },
+        error: function(message, context){
+            this.log('error', Util.format.apply(null, arguments));
+        }
+    }
 ;
 
-var debug = process.argv[3] === 'debug';
+var showWindow = process.argv[3] === 'show';
+
+// Global exception handler
+process.on('uncaughtException', function (err) {
+    Logger.error('Uncaught exception: %j', {'error': err});
+});
+
+// Ensures stdout/err is always flushed before exit. See: https://github.com/nodejs/node/issues/6456
+[process.stdout, process.stderr].forEach(function (s) {
+    s && s.isTTY && s._handle && s._handle.setBlocking && s._handle.setBlocking(true);
+});
 
 Electron.app.on('ready', function() {
-    var mainWindow = new BrowserWindow({'show': debug, 'webPreferences': {'devTools': debug}}),
+    var mainWindow = new BrowserWindow({
+            'show': showWindow,
+            'webPreferences': {'devTools': showWindow}
+        }),
         currWindow = mainWindow,
         pageVisited = false,
         hdrs = {},
@@ -39,7 +74,7 @@ Electron.app.on('ready', function() {
 
             window.webContents.once('did-finish-load', function () {
                 pageVisited = true;
-                console.log('Loaded');
+                Logger.info('Page finished loading.');
             });
         }
     ;
@@ -71,7 +106,7 @@ Electron.app.on('ready', function() {
     var server = DNode(
         {
             reset: function (cb) {
-                if (debug) console.log('reset()');
+                Logger.debug('reset()');
 
                 hdrs = {};
                 auth = {'user': false, 'pass': ''};
@@ -88,7 +123,7 @@ Electron.app.on('ready', function() {
                 var extraHeaders = '';
                 for (var key in hdrs)extraHeaders += key + ': ' + hdrs[key] + '\n';
 
-                if (debug) console.log('visit(%s) (extraHeaders: %s)', url, extraHeaders.replace(/\n/g, '\\n'));
+                Logger.debug('visit(%s) (extraHeaders: %s)', url, extraHeaders.replace(/\n/g, '\\n') || 'none');
 
                 setupPageVisited(currWindow);
                 currWindow.loadURL(url, {'extraHeaders': extraHeaders});
@@ -97,19 +132,19 @@ Electron.app.on('ready', function() {
             },
 
             visited: function (cb) {
-                if (debug) console.log('visited() => %s', pageVisited);
+                Logger.debug('visited() => %s', pageVisited);
 
                 cb(pageVisited);
             },
 
             getCurrentUrl: function (cb) {
-                if (debug) console.log('getCurrentUrl() => %s', currWindow.webContents.getURL());
+                Logger.debug('getCurrentUrl() => %s', currWindow.webContents.getURL());
 
                 cb(currWindow.webContents.getURL().toString());
             },
 
             reload: function (cb) {
-                if (debug) console.log('reload()');
+                Logger.debug('reload()');
 
                 setupPageVisited(currWindow);
                 currWindow.webContents.reload();
@@ -118,7 +153,7 @@ Electron.app.on('ready', function() {
             },
 
             back: function (cb) {
-                if (debug) console.log('back()');
+                Logger.debug('back()');
 
                 setupPageVisited(currWindow);
                 currWindow.webContents.goBack();
@@ -127,7 +162,7 @@ Electron.app.on('ready', function() {
             },
 
             forward: function (cb) {
-                if (debug) console.log('forward()');
+                Logger.debug('forward()');
 
                 setupPageVisited(currWindow);
                 currWindow.webContents.goForward();
@@ -136,7 +171,7 @@ Electron.app.on('ready', function() {
             },
 
             setBasicAuth: function (user, pass, cb) {
-                if (debug) console.log('setBasicAuth(%s, %s)', user, pass);
+                Logger.debug('setBasicAuth(%s, %s)', user, pass);
 
                 auth.user = user;
                 auth.pass = pass;
@@ -149,7 +184,7 @@ Electron.app.on('ready', function() {
             },
 
             switchToWindow: function (name, cb) {
-                if (debug) console.log('switchToWindow(%s)', parseInt(name));
+                Logger.debug('switchToWindow(%s)', parseInt(name));
 
                 currWindow = name === null ? mainWindow : BrowserWindow.fromId(parseInt(name));
 
@@ -161,7 +196,7 @@ Electron.app.on('ready', function() {
             },
 
             setRequestHeader: function (name, value, cb) {
-                if (debug) console.log('setRequestHeader(%s, %s)', name, value);
+                Logger.debug('setRequestHeader(%s, %s)', name, value);
 
                 hdrs[name] = value;
 
@@ -169,13 +204,13 @@ Electron.app.on('ready', function() {
             },
 
             getResponseHeaders: function (cb) {
-                if (debug) console.log('getResponseHeaders() => %s', JSON.stringify(lastHeaders));
+                Logger.debug('getResponseHeaders() => %s', JSON.stringify(lastHeaders));
 
                 cb(lastHeaders);
             },
 
             setCookie: function (name, value, cb) {
-                if (debug) console.log('setCookie(%s, %s)', name, value);
+                Logger.debug('setCookie(%s, %s)', name, value);
 
                 cookieResponse = null;
                 currWindow.webContents.session.cookies.set( // TODO if value is null call remove cookie?
@@ -193,7 +228,7 @@ Electron.app.on('ready', function() {
             },
 
             getCookie: function (name, cb) {
-                if (debug) console.log('getCookie(%s)', name);
+                Logger.debug('getCookie(%s)', name);
 
                 cookieResponse = null;
                 currWindow.webContents.session.cookies.get(
@@ -213,13 +248,13 @@ Electron.app.on('ready', function() {
             },
 
             getCookieResponse: function (cb) {
-                if (debug) console.log('getCookieResponse() => %s', cookieResponse);
+                Logger.debug('getCookieResponse() => %s', cookieResponse);
 
                 cb(cookieResponse);
             },
 
             getStatusCode: function (cb) {
-                if (debug) console.log('getStatusCode() => %s', lastStatusCode);
+                Logger.debug('getStatusCode() => %s', lastStatusCode);
 
                 cb(lastStatusCode);
             },
@@ -231,7 +266,7 @@ Electron.app.on('ready', function() {
                     lastContentSaved = error || true;
                 });
 
-                if (debug) console.log('getContent() => %s (saving to %s)', started, lastContentPath);
+                Logger.debug('getContent() => %s (saving to %s)', started, lastContentPath);
 
                 cb(started);
             },
@@ -249,31 +284,33 @@ Electron.app.on('ready', function() {
                     FS.unlink(lastContentPath);
                 }
 
-                if (debug) console.log('getContentResponse() => %s (reading from %s)', JSON.stringify(lastContent), lastContentPath);
+                Logger.debug('getContentResponse() => %s (reading from %s)', JSON.stringify(lastContent), lastContentPath);
 
                 cb(lastContent);
             },
 
             evaluateScript: function (script, cb) {
-                if (debug) console.log('evaluateScript(%s)', script);
+                Logger.debug('evaluateScript(%s)', script);
 
                 executeResponse = null;
 
                 currWindow.webContents
-                    .executeJavaScript(script, true)
-                    .then(function (result) {
+                    .executeJavaScript(script, true, function (result) {
                         executeResponse = {'result': result};
                     })
-                    .catch(function (error) {
-                        executeResponse = {'error': error.toString()};
-                    })
+//                    .then(function (result) {
+//                        executeResponse = {'result': result};
+//                    })
+//                    .catch(function (error) {
+//                        executeResponse = {'error': error.toString()};
+//                    })
                 ;
 
                 cb();
             },
 
             getEvaluateScriptResponse: function (cb) {
-                if (debug) console.log('getEvaluateScriptResponse() => %s', executeResponse);
+                Logger.debug('getEvaluateScriptResponse() => %s', executeResponse);
 
                 cb(executeResponse);
             },
@@ -289,13 +326,13 @@ Electron.app.on('ready', function() {
                         return win.id.toString();
                     });
 
-                if (debug) console.log('getWindowNames() => %s', windowNames);
+                Logger.debug('getWindowNames() => %s', windowNames);
 
                 cb(windowNames);
             },
 
             getWindowName: function (cb) {
-                if (debug) console.log('getWindowName() => %s', currWindow.id.toString());
+                Logger.debug('getWindowName() => %s', currWindow.id.toString());
 
                 cb(currWindow.id.toString());
             },

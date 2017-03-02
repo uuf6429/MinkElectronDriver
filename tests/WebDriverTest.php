@@ -4,10 +4,23 @@ namespace Behat\Mink\Tests\Driver\Custom;
 
 use Behat\Mink\Driver\ElectronDriver;
 use Behat\Mink\Exception\UnsupportedDriverActionException;
+use Behat\Mink\Tests\Driver\ElectronConfig;
 use PHPUnit\Framework\TestCase;
 
 class WebDriverTest extends TestCase
 {
+    /**
+     * @var ElectronConfig
+     */
+    protected static $config;
+
+    public static function setUpBeforeClass()
+    {
+        parent::setUpBeforeClass();
+
+        self::$config = new ElectronConfig();
+    }
+
     /**
      * @var ElectronDriver
      */
@@ -17,7 +30,7 @@ class WebDriverTest extends TestCase
     {
         parent::setUp();
 
-        $this->driver = new ElectronDriver(true);
+        $this->driver = self::$config->createDriver();
         $this->driver->start();
     }
 
@@ -26,13 +39,6 @@ class WebDriverTest extends TestCase
         $this->driver->stop();
 
         parent::tearDown();
-    }
-
-    protected function onNotSuccessfulTest($e)
-    {
-        echo 'Server Output:' . PHP_EOL . $this->driver->getServerOutput();
-
-        parent::onNotSuccessfulTest($e);
     }
 
     public function testNavigation()

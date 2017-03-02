@@ -6,11 +6,14 @@ use Behat\Mink\Exception\DriverException;
 use Behat\Mink\Exception\UnsupportedDriverActionException;
 use DnodeSyncClient\Connection;
 use DnodeSyncClient\IOException;
+use Psr\Log;
 use Symfony\Component\Process\Process;
 use DnodeSyncClient\Dnode;
 
-class ElectronDriver extends CoreDriver
+class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
 {
+    use Log\LoggerAwareTrait;
+
     /**
      * @var Process
      */
@@ -32,21 +35,21 @@ class ElectronDriver extends CoreDriver
     protected $dnodeClient;
 
     /**
-     * @var string
-     */
-    protected $serverOutput = '';
-
-    /**
      * @var bool
      */
-    protected $debug;
+    protected $showElectron;
 
     /**
-     * @param bool $debug
+     * @param Log\LoggerInterface $logger
+     * @param bool $showElectron
      */
-    public function __construct($debug = false)
+    public function __construct(
+        Log\LoggerInterface $logger = null,
+        $showElectron = false
+    )
     {
-        $this->debug = $debug;
+        $this->setLogger($logger ?: new Log\NullLogger());
+        $this->showElectron = $showElectron;
     }
 
     /**
@@ -55,17 +58,28 @@ class ElectronDriver extends CoreDriver
     public function start()
     {
         try {
-            $this->serverOutput = '';
             // TODO add more config options (eg; node path, env vars, args, etc)
             $this->electronProcess = new Process($this->buildServerCmd(), dirname(__DIR__));
             $this->electronProcess->setTimeout(null);
 
-            if (!$this->debug) {
+            if (!$this->showElectron) {
                 $this->electronProcess->disableOutput();
             }
 
             $this->electronProcess->start(function ($type, $output) {
-                $this->serverOutput .= strtoupper($type) . '> ' . $output;
+                array_map(function ($line) use ($type) {
+                    if (trim($line)) {
+                        if (is_array($record = @json_decode($line, true))
+                            && isset($record['level'])
+                            && isset($record['message'])
+                            && isset($record['context'])
+                        ) {
+                            $this->logger->log($record['level'], $record['message'], (array)$record['context'] ?: []);
+                        } else {
+                            $this->logger->alert('Unexpected Electron server output line "{output}".', ['stdio' => $type, 'output' => $line]);
+                        }
+                    }
+                }, explode("\n", $output));
             });
 
             $address = [];
@@ -78,9 +92,8 @@ class ElectronDriver extends CoreDriver
                 if (!$this->electronProcess->isRunning()) {
                     throw new DriverException(
                         sprintf(
-                            "Electron server process quit unexpectedly.\nExit Code: %d\nOutput: %s",
-                            $this->electronProcess->getExitCode(),
-                            $this->debug ? $this->getServerOutput() : 'None; debug disabled.'
+                            'Electron server process quit unexpectedly (exit Code: %d).',
+                            $this->electronProcess->getExitCode()
                         )
                     );
                 }
@@ -93,10 +106,9 @@ class ElectronDriver extends CoreDriver
                         $exitCode = $this->electronProcess->stop();
                         throw new DriverException(
                             sprintf(
-                                "Gave up connecting to electron server after %d tries.\nExit Code: %d\nOutput: %s",
+                                'Gave up connecting to electron server after %d tries (exit Code: %d).',
                                 $currTry,
-                                $exitCode,
-                                $this->debug ? $this->getServerOutput() : 'None; debug disabled.'
+                                $exitCode
                             ), 0, $ex
                         );
                     }
@@ -328,88 +340,61 @@ class ElectronDriver extends CoreDriver
     }
 
     /**
-     * Returns element's tag name by it's XPath query.
-     *
-     * @param string $xpath
-     *
-     * @return string
-     *
-     * @throws UnsupportedDriverActionException When operation not supported by the driver
-     * @throws DriverException                  When the operation cannot be done
+     * @inheritdoc
+     */
+    protected function findElementXpaths($xpath)
+    {
+        $count = $this->evaluateScriptWithArgs(
+            'document.evaluate(xpath, document, null, XPathResult.NUMBER_TYPE, null).numberValue',
+            ['xpath' => sprintf('count(%s)', $xpath)]
+        );
+
+        return array_map(
+            function ($index) use ($xpath) {
+                return sprintf('(%s)[%d]', $xpath, $index + 1);
+            },
+            range(0, $count)
+        );
+    }
+
+    /**
+     * @inheritdoc
      */
     public function getTagName($xpath)
     {
-        // TODO: Implement getTagName() method.
+        return $this->evaluateForElementByXPath($xpath, 'element.tagName');
     }
 
     /**
-     * Returns element's text by it's XPath query.
-     *
-     * @param string $xpath
-     *
-     * @return string
-     *
-     * @throws UnsupportedDriverActionException When operation not supported by the driver
-     * @throws DriverException                  When the operation cannot be done
+     * @inheritdoc
      */
     public function getText($xpath)
     {
-        // TODO: Implement getText() method.
+        return $this->evaluateForElementByXPath($xpath, 'element.innerText');
     }
 
     /**
-     * Returns element's inner html by it's XPath query.
-     *
-     * @param string $xpath
-     *
-     * @return string
-     *
-     * @throws UnsupportedDriverActionException When operation not supported by the driver
-     * @throws DriverException                  When the operation cannot be done
+     * @inheritdoc
      */
     public function getHtml($xpath)
     {
-        return $this->evaluateScriptWithArgs(
-            'document.evaluate(path, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue.innerHTML',
-            ['path' => $xpath]
-        );
+        return $this->evaluateForElementByXPath($xpath, 'element.innerHTML');
     }
 
     /**
-     * Returns element's outer html by it's XPath query.
-     *
-     * @param string $xpath
-     *
-     * @return string
-     *
-     * @throws UnsupportedDriverActionException When operation not supported by the driver
-     * @throws DriverException                  When the operation cannot be done
+     * @inheritdoc
      */
     public function getOuterHtml($xpath)
     {
-        return $this->evaluateScriptWithArgs(
-            'document.evaluate(path, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue.outerHTML',
-            ['path' => $xpath]
-        );
+        return $this->evaluateForElementByXPath($xpath, 'element.outerHTML');
     }
 
     /**
-     * Returns element's attribute by it's XPath query.
-     *
-     * @param string $xpath
-     * @param string $name
-     *
-     * @return string|null
-     *
-     * @throws UnsupportedDriverActionException When operation not supported by the driver
-     * @throws DriverException                  When the operation cannot be done
+     * @inheritdoc
      */
     public function getAttribute($xpath, $name)
     {
-        return $this->evaluateScriptWithArgs(
-            'document.evaluate(path, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue.getAttribute(name)',
-            ['path' => $xpath, 'name' => $name]
-        );
+        return $this->evaluateForElementByXPath($xpath, 'element.getAttribute(name)', ['name' => $name]);
     }
 
     /**
@@ -427,6 +412,7 @@ class ElectronDriver extends CoreDriver
     public function getValue($xpath)
     {
         // TODO: Implement getValue() method.
+        // NOTE: Not that easy to implement..
     }
 
     /**
@@ -707,7 +693,14 @@ class ElectronDriver extends CoreDriver
      */
     public function evaluateScript($script)
     {
-        $this->sendAndWaitWithoutResult('evaluateScript', [$script]);
+        static $RETURN_TOKEN = 'return ';
+
+        // prepend expression with return keyword if not there
+        if (substr($script, 0, strlen($RETURN_TOKEN)) !== $RETURN_TOKEN) {
+            $script = $RETURN_TOKEN . $script;
+        }
+
+        $this->sendAndWaitWithoutResult('evaluateScript', [rtrim($script, ';') . ';']);
 
         $result = $this->waitForEvaluateScriptResponse();
 
@@ -760,7 +753,7 @@ class ElectronDriver extends CoreDriver
             escapeshellarg(__DIR__ . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . 'node_modules' . DIRECTORY_SEPARATOR . '.bin' . DIRECTORY_SEPARATOR . 'electron'),
             escapeshellarg(__DIR__ . DIRECTORY_SEPARATOR . 'ElectronServer.js'),
             escapeshellarg($this->electronServerAddress),
-            $this->debug ? ' debug' : ''
+            $this->showElectron ? ' show' : ''
         );
     }
 
@@ -811,14 +804,6 @@ class ElectronDriver extends CoreDriver
         }
     }
 
-    /**
-     * @return string
-     */
-    public function getServerOutput()
-    {
-        return $this->serverOutput;
-    }
-
     protected function waitForVisited()
     {
         while (!$this->sendAndWaitWithResult('visited')) {
@@ -864,19 +849,45 @@ class ElectronDriver extends CoreDriver
 
     /**
      * @param string $script
-     * @param array <string, mixed> $args
+     * @param array <string, mixed> $valueArgs
+     * @param array <string, string> $exprArgs
      * @return mixed
-     * @example $driver->evaluateScriptWithArgs('a * b', ['a' => 5, 'b' => 6])
+     * @example $driver->evaluateScriptWithArgs('a * b', ['a' => 5], ['b' => '1 + 2']) => 15
      */
-    protected function evaluateScriptWithArgs($script, $args)
+    protected function evaluateScriptWithArgs($script, $valueArgs = [], $exprArgs = [])
     {
+        static $RETURN_TOKEN = 'return ';
+
+        // prepend expression with return keyword if not there
+        if (substr($script, 0, strlen($RETURN_TOKEN)) !== $RETURN_TOKEN) {
+            $script = $RETURN_TOKEN . $script;
+        }
+
         return $this->evaluateScript(
             sprintf(
                 '(function(%s){ %s })(%s)',
-                implode(', ', array_keys($args)),
-                $script,
-                implode(', ', array_map('json_encode', array_values($args)))
+                implode(', ', array_keys($valueArgs) + array_keys($exprArgs)),
+                rtrim($script, ';') . ';',
+                implode(', ', array_map('json_encode', array_values($valueArgs)) + array_values($exprArgs))
             )
         );
+    }
+
+    /**
+     * @param string $xpath
+     * @param string $expr
+     * @param array <string, mixed> $valueArgs
+     * @param array <string, string> $exprArgs
+     * @return mixed
+     */
+    protected function evaluateForElementByXPath($xpath, $expr, $valueArgs = [], $exprArgs = [])
+    {
+        // add expression that resolves to "element"
+        $exprArgs['element'] = sprintf(
+            'document.evaluate(%s, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue',
+            json_encode($xpath)
+        );
+
+        return $this->evaluateScriptWithArgs($expr, $valueArgs, $exprArgs);
     }
 }
