@@ -62,7 +62,7 @@ class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
             $this->electronProcess = new Process($this->buildServerCmd(), dirname(__DIR__));
             $this->electronProcess->setTimeout(null);
 
-            if (!$this->showElectron) {
+            if ($this->logger instanceof Log\NullLogger) {
                 $this->electronProcess->disableOutput();
             }
 
