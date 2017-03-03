@@ -33,7 +33,9 @@ class FileLogger extends AbstractLogger
         if (isset($context['srcTime'])) {
             $time = \DateTime::createFromFormat('U.u', (string)$context['srcTime']);
             unset($context['srcTime']);
-        } else {
+        }
+
+        if (empty($time)) {
             $time = \DateTime::createFromFormat('U.u', implode('.', array_slice(gettimeofday(), 0, 2)));
         }
 

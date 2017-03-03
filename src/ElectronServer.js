@@ -26,13 +26,13 @@ const Electron = require('electron'),
         debug: function(){
             this.log('debug', Util.format.apply(null, arguments));
         },
-        info: function(message, context){
+        info: function(){
             this.log('info', Util.format.apply(null, arguments));
         },
-        warn: function(message, context){
+        warn: function(){
             this.log('warning', Util.format.apply(null, arguments));
         },
-        error: function(message, context){
+        error: function(){
             this.log('error', Util.format.apply(null, arguments));
         }
     }
@@ -41,8 +41,8 @@ const Electron = require('electron'),
 var showWindow = process.argv[3] === 'show';
 
 // Global exception handler
-process.on('uncaughtException', function (err) {
-    Logger.error('Uncaught exception: %j', {'error': err});
+process.on('uncaughtException', function (error) {
+    Logger.error('Uncaught exception: %s', (error.stack || error).toString());
 });
 
 // Ensures stdout/err is always flushed before exit. See: https://github.com/nodejs/node/issues/6456
@@ -220,7 +220,7 @@ Electron.app.on('ready', function() {
                         'value': value
                     },
                     function (error) {
-                        cookieResponse = {'set': !error, 'error': (error || '').toString()};
+                        cookieResponse = {'set': !error, 'error': (error.stack || error || '').toString()};
                     }
                 );
 
@@ -239,7 +239,7 @@ Electron.app.on('ready', function() {
                     function (error, cookies) {
                         cookieResponse = {
                             'get': cookies.length ? cookies[0].value : null,
-                            'error': (error || '').toString()
+                            'error': (error.stack || error || '').toString()
                         };
                     }
                 );
@@ -295,16 +295,15 @@ Electron.app.on('ready', function() {
                 executeResponse = null;
 
                 currWindow.webContents
-                    .executeJavaScript(script, true, function (result) {
-                        executeResponse = {'result': result};
-                    })
-//                    .then(function (result) {
-//                        executeResponse = {'result': result};
-//                    })
-//                    .catch(function (error) {
-//                        executeResponse = {'error': error.toString()};
-//                    })
-                ;
+                    .executeJavaScript(script, true)
+                    .then(
+                        function (result) {
+                            executeResponse = {'result': result};
+                        },
+                        function (error) {
+                            executeResponse = {'error': (error.stack || error).toString()};
+                        }
+                    );
 
                 cb();
             },
