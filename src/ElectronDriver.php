@@ -344,7 +344,7 @@ class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
      */
     protected function findElementXpaths($xpath)
     {
-        $count = $this->evaluateScriptWithArgs(
+        $count = $this->evaluateExprWithArgs(
             'document.evaluate(xpath, document, null, XPathResult.NUMBER_TYPE, null).numberValue',
             ['xpath' => sprintf('count(%s)', $xpath)]
         );
@@ -693,11 +693,9 @@ class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
      */
     public function evaluateScript($script)
     {
-        static $RETURN_TOKEN = 'return ';
-
-        // prepend expression with return keyword if not there
-        if (substr($script, 0, strlen($RETURN_TOKEN)) !== $RETURN_TOKEN) {
-            $script = $RETURN_TOKEN . $script;
+        // remove return keyword if present
+        if (substr($script, 0, 7) === 'return ') {
+            $script = substr($script, 7);
         }
 
         $this->sendAndWaitWithoutResult('evaluateScript', [rtrim($script, ';') . ';']);
@@ -848,27 +846,20 @@ class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
     }
 
     /**
-     * @param string $script
+     * @param string $expr
      * @param array <string, mixed> $valueArgs
      * @param array <string, string> $exprArgs
      * @return mixed
      * @example $driver->evaluateScriptWithArgs('a * b', ['a' => 5], ['b' => '1 + 2']) => 15
      */
-    protected function evaluateScriptWithArgs($script, $valueArgs = [], $exprArgs = [])
+    protected function evaluateExprWithArgs($expr, $valueArgs = [], $exprArgs = [])
     {
-        static $RETURN_TOKEN = 'return ';
-
-        // prepend expression with return keyword if not there
-        if (substr($script, 0, strlen($RETURN_TOKEN)) !== $RETURN_TOKEN) {
-            $script = $RETURN_TOKEN . $script;
-        }
-
         return $this->evaluateScript(
             sprintf(
-                '(function(%s){ %s })(%s)',
-                implode(', ', array_keys($valueArgs) + array_keys($exprArgs)),
-                rtrim($script, ';') . ';',
-                implode(', ', array_map('json_encode', array_values($valueArgs)) + array_values($exprArgs))
+                '(function(%s){ return %s; })(%s)',
+                implode(', ', array_merge(array_keys($valueArgs), array_keys($exprArgs))),
+                $expr,
+                implode(', ', array_merge(array_map('json_encode', array_values($valueArgs)), array_values($exprArgs)))
             )
         );
     }
@@ -888,6 +879,6 @@ class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
             json_encode($xpath)
         );
 
-        return $this->evaluateScriptWithArgs($expr, $valueArgs, $exprArgs);
+        return $this->evaluateExprWithArgs($expr, $valueArgs, $exprArgs);
     }
 }
