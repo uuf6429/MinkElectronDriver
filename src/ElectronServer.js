@@ -204,7 +204,7 @@ Electron.app.on('ready', function() {
             },
 
             getResponseHeaders: function (cb) {
-                Logger.debug('getResponseHeaders() => %s', JSON.stringify(lastHeaders));
+                Logger.debug('getResponseHeaders() => %j', lastHeaders);
 
                 cb(lastHeaders);
             },
@@ -248,7 +248,7 @@ Electron.app.on('ready', function() {
             },
 
             getCookieResponse: function (cb) {
-                Logger.debug('getCookieResponse() => %s', cookieResponse);
+                Logger.debug('getCookieResponse() => %j', cookieResponse);
 
                 cb(cookieResponse);
             },
@@ -309,7 +309,7 @@ Electron.app.on('ready', function() {
             },
 
             getEvaluateScriptResponse: function (cb) {
-                Logger.debug('getEvaluateScriptResponse() => %s', executeResponse);
+                Logger.debug('getEvaluateScriptResponse() => %j', executeResponse);
 
                 cb(executeResponse);
             },
@@ -325,7 +325,7 @@ Electron.app.on('ready', function() {
                         return win.id.toString();
                     });
 
-                Logger.debug('getWindowNames() => %s', windowNames);
+                Logger.debug('getWindowNames() => %j', windowNames);
 
                 cb(windowNames);
             },
