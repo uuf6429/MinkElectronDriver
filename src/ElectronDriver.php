@@ -303,7 +303,7 @@ class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
         $result = $this->waitForAsyncResult('getContentResponse', [], 0.001);
 
         if (isset($result['error'])) {
-            throw new DriverException('Could saving page content: ' . $result['error']);
+            throw new DriverException('Could not save page content: ' . $result['error']);
         }
 
         return $result['content'];
@@ -811,7 +811,7 @@ JS
      * @param float $timeout Time out in seconds.
      * @return mixed
      */
-    protected function waitForAsyncResult($method, $arguments, $delay, $timeout = null)
+    protected function waitForAsyncResult($method, $arguments = [], $delay = 0.05, $timeout = null)
     {
         while (($result = $this->sendAndWaitWithResult($method, $arguments)) === null) {
             usleep($delay * 1000000);

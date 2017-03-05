@@ -56,7 +56,7 @@ Electron.app.on('ready', function() {
             'webPreferences': {'devTools': showWindow}
         }),
         currWindow = mainWindow,
-        pageVisited = false,
+        pageVisited = null,
         hdrs = {},
         auth = {'user': false, 'pass': null},
         lastStatusCode = null,
@@ -70,7 +70,7 @@ Electron.app.on('ready', function() {
          * @param {Electron.BrowserWindow} window
          */
         setupPageVisited = function (window) {
-            pageVisited = false;
+            pageVisited = null;
             lastStatusCode = null;
 
             window.webContents.once('did-finish-load', function () {
