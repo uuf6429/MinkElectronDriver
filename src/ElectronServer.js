@@ -42,7 +42,7 @@ var showWindow = process.argv[3] === 'show';
 
 // Global exception handler
 process.on('uncaughtException', function (error) {
-    Logger.error('Uncaught exception: %s', (error.stack || error).toString());
+    Logger.error('Uncaught exception: %s', (error ? (error.stack || error) : '').toString());
 });
 
 // Ensures stdout/err is always flushed before exit. See: https://github.com/nodejs/node/issues/6456
@@ -65,6 +65,7 @@ Electron.app.on('ready', function() {
         lastHeaders = null,
         executeResponse = null,
         cookieResponse = null,
+        screenshotResponse = null,
         /**
          * @param {Electron.BrowserWindow} window
          */
@@ -220,7 +221,7 @@ Electron.app.on('ready', function() {
                         'value': value
                     },
                     function (error) {
-                        cookieResponse = {'set': !error, 'error': (error.stack || error || '').toString()};
+                        cookieResponse = {'set': !error, 'error': (error ? (error.stack || error) : '').toString()};
                     }
                 );
 
@@ -239,7 +240,7 @@ Electron.app.on('ready', function() {
                     function (error, cookies) {
                         cookieResponse = {
                             'get': cookies.length ? cookies[0].value : null,
-                            'error': (error.stack || error || '').toString()
+                            'error': (error ? (error.stack || error) : '').toString()
                         };
                     }
                 );
@@ -301,7 +302,7 @@ Electron.app.on('ready', function() {
                             executeResponse = {'result': result};
                         },
                         function (error) {
-                            executeResponse = {'error': (error.stack || error).toString()};
+                            executeResponse = {'error': (error ? (error.stack || error) : '').toString()};
                         }
                     );
 
@@ -314,8 +315,21 @@ Electron.app.on('ready', function() {
                 cb(executeResponse);
             },
 
-            getScreenshot: function () {
-                // TODO
+            getScreenshot: function (cb) {
+                Logger.debug('getScreenshot()');
+
+                screenshotResponse = null;
+                currWindow.capturePage(currWindow.getContentBounds(), function (image) {
+                    screenshotResponse = {'data': image.toPNG().toString()};
+                });
+
+                cb();
+            },
+
+            getScreenshotResponse: function (cb) {
+                Logger.debug('getScreenshotResponse() => %j', screenshotResponse);
+
+                cb(screenshotResponse);
             },
 
             getWindowNames: function (cb) {
@@ -336,32 +350,20 @@ Electron.app.on('ready', function() {
                 cb(currWindow.id.toString());
             },
 
-            find: function () {
-                // TODO
+            resizeWindow: function (width, height, name, cb) {
+                Logger.debug('resizeWindow(%s, %s, %s)', width, height, name);
+
+                (name === null ? currWindow : BrowserWindow.fromId(parseInt(name))).setSize(width, height, false);
+
+                cb();
             },
 
-            getTagName: function () {
-                // TODO
-            },
+            maximizeWindow: function (name, cb) {
+                Logger.debug('maximizeWindow(%s)', name);
 
-            getText: function () {
-                // TODO
-            },
+                (name === null ? currWindow : BrowserWindow.fromId(parseInt(name))).maximize();
 
-            getHtml: function () {
-                // TODO
-            },
-
-            getOuterHtml: function () {
-                // TODO
-            },
-
-            getAttribute: function () {
-                // TODO
-            },
-
-            getValue: function () {
-                // TODO
+                cb();
             }
         }
     );

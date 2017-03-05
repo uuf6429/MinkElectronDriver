@@ -22,29 +22,6 @@ class ElectronConfig extends AbstractConfig
     /**
      * {@inheritdoc}
      */
-    public function skipMessage($testCase, $test)
-    {
-        if (
-            'Behat\Mink\Tests\Driver\Js\WindowTest' === $testCase
-            && in_array($test, array('testResizeWindow', 'testWindowMaximize'))
-        ) {
-            return 'Electron driver does not support window resizing.';
-        }
-
-        if (
-            'Behat\Mink\Tests\Driver\Js\WindowTest' === $testCase
-            && 'testWindowMaximize' === $test
-            && 'true' === getenv('TRAVIS')
-        ) {
-            return 'Electron driver does not support window maximizing.';
-        }
-
-        return parent::skipMessage($testCase, $test);
-    }
-
-    /**
-     * {@inheritdoc}
-     */
     protected function supportsCss()
     {
         return true;

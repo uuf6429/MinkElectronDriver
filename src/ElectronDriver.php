@@ -222,7 +222,7 @@ class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
      */
     public function switchToIFrame($name = null)
     {
-        // TODO: Implement switchToIFrame() method.
+        $this->callBaseMethod(__FUNCTION__, func_get_args()); // TODO: Implement switchToIFrame() method.
     }
 
     /**
@@ -320,7 +320,7 @@ class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
      */
     public function getScreenshot()
     {
-        // TODO: Implement getScreenshot() method.
+        return $this->callBaseMethod(__FUNCTION__, func_get_args()); // TODO: Implement getScreenshot() method.
     }
 
     /**
@@ -398,21 +398,42 @@ class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
     }
 
     /**
-     * Returns element's value by it's XPath query.
-     *
-     * @param string $xpath
-     *
-     * @return string|bool|array
-     *
-     * @throws UnsupportedDriverActionException When operation not supported by the driver
-     * @throws DriverException                  When the operation cannot be done
-     *
-     * @see \Behat\Mink\Element\NodeElement::getValue
+     * @inheritdoc
      */
     public function getValue($xpath)
     {
-        // TODO: Implement getValue() method.
-        // NOTE: Not that easy to implement..
+        return $this->evaluateForElementByXPath($xpath, <<<JS
+            (function () {
+                var i;
+                switch (true) {
+                    case element.tagName == "INPUT" && element.type == "checkbox":
+                        return element.checked ? element.value : null;
+                    case element.tagName == "INPUT" && element.type == "radio":
+                        var name = element.getAttribute('name');
+                        if (name) {
+                            var radioButtons = window.document.getElementsByName(name);
+                            for (i = 0; i < radioButtons.length; i++) {
+                                var radioButton = radioButtons.item(i);
+                                if (radioButton.form === element.form && radioButton.checked) {
+                                    return radioButton.value;
+                                }
+                            }
+                        }
+                        return null;
+                    case element.tagName == "SELECT" && element.multiple:
+                        var selected = [];
+                        for (i = 0; i < element.options.length; i++) {
+                            if (element.options[i].selected) {
+                                selected.push(element.options[i].value);
+                            }
+                        }
+                        return selected;
+                    default:
+                        return element.value;
+                }
+            })();
+JS
+        );
     }
 
     /**
@@ -428,54 +449,31 @@ class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
      */
     public function setValue($xpath, $value)
     {
-        // TODO: Implement setValue() method.
+        $this->callBaseMethod(__FUNCTION__, func_get_args()); // TODO: Implement setValue() method.
     }
 
     /**
-     * Checks checkbox by it's XPath query.
-     *
-     * @param string $xpath
-     *
-     * @throws UnsupportedDriverActionException When operation not supported by the driver
-     * @throws DriverException                  When the operation cannot be done
-     *
-     * @see \Behat\Mink\Element\NodeElement::check
+     * @inheritdoc
      */
     public function check($xpath)
     {
-        // TODO: Implement check() method.
+        $this->evaluateForElementByXPath($xpath, '(element.checked === false) ? element.click() : false');
     }
 
     /**
-     * Unchecks checkbox by it's XPath query.
-     *
-     * @param string $xpath
-     *
-     * @throws UnsupportedDriverActionException When operation not supported by the driver
-     * @throws DriverException                  When the operation cannot be done
-     *
-     * @see \Behat\Mink\Element\NodeElement::uncheck
+     * @inheritdoc
      */
     public function uncheck($xpath)
     {
-        // TODO: Implement uncheck() method.
+        $this->evaluateForElementByXPath($xpath, '(element.checked === true) ? element.click() : false');
     }
 
     /**
-     * Checks whether checkbox or radio button located by it's XPath query is checked.
-     *
-     * @param string $xpath
-     *
-     * @return Boolean
-     *
-     * @throws UnsupportedDriverActionException When operation not supported by the driver
-     * @throws DriverException                  When the operation cannot be done
-     *
-     * @see \Behat\Mink\Element\NodeElement::isChecked
+     * @inheritdoc
      */
     public function isChecked($xpath)
     {
-        // TODO: Implement isChecked() method.
+        return $this->evaluateForElementByXPath($xpath, 'element.checked');
     }
 
     /**
@@ -492,7 +490,7 @@ class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
      */
     public function selectOption($xpath, $value, $multiple = false)
     {
-        // TODO: Implement selectOption() method.
+        $this->callBaseMethod(__FUNCTION__, func_get_args()); // TODO: Implement selectOption() method.
     }
 
     /**
@@ -509,33 +507,30 @@ class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
      */
     public function isSelected($xpath)
     {
-        // TODO: Implement isSelected() method.
+        return $this->callBaseMethod(__FUNCTION__, func_get_args()); // TODO: Implement isSelected() method.
     }
 
     /**
-     * Clicks button or link located by it's XPath query.
-     *
-     * @param string $xpath
-     *
-     * @throws UnsupportedDriverActionException When operation not supported by the driver
-     * @throws DriverException                  When the operation cannot be done
+     * @inheritdoc
      */
     public function click($xpath)
     {
-        // TODO: Implement click() method.
+        $this->evaluateForElementByXPath($xpath, 'element.click()');
     }
 
     /**
-     * Double-clicks button or link located by it's XPath query.
-     *
-     * @param string $xpath
-     *
-     * @throws UnsupportedDriverActionException When operation not supported by the driver
-     * @throws DriverException                  When the operation cannot be done
+     * @inheritdoc
      */
     public function doubleClick($xpath)
     {
-        // TODO: Implement doubleClick() method.
+        $this->evaluateForElementByXPath($xpath, <<<JS
+            element.dispatchEvent(new MouseEvent('dblclick', {
+                'view': window,
+                'bubbles': true,
+                'cancelable': true
+            }))
+JS
+        );
     }
 
     /**
@@ -548,7 +543,7 @@ class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
      */
     public function rightClick($xpath)
     {
-        // TODO: Implement rightClick() method.
+        $this->callBaseMethod(__FUNCTION__, func_get_args()); // TODO: Implement rightClick() method.
     }
 
     /**
@@ -564,7 +559,7 @@ class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
      */
     public function attachFile($xpath, $path)
     {
-        // TODO: Implement attachFile() method.
+        $this->callBaseMethod(__FUNCTION__, func_get_args()); // TODO: Implement attachFile() method.
     }
 
     /**
@@ -579,7 +574,7 @@ class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
      */
     public function isVisible($xpath)
     {
-        // TODO: Implement isVisible() method.
+        return $this->callBaseMethod(__FUNCTION__, func_get_args()); // TODO: Implement isVisible() method.
     }
 
     /**
@@ -592,33 +587,23 @@ class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
      */
     public function mouseOver($xpath)
     {
-        // TODO: Implement mouseOver() method.
+        $this->callBaseMethod(__FUNCTION__, func_get_args()); // TODO: Implement mouseOver() method.
     }
 
     /**
-     * Brings focus to element.
-     *
-     * @param string $xpath
-     *
-     * @throws UnsupportedDriverActionException When operation not supported by the driver
-     * @throws DriverException                  When the operation cannot be done
+     * @inheritdoc
      */
     public function focus($xpath)
     {
-        // TODO: Implement focus() method.
+        $this->evaluateForElementByXPath($xpath, 'element.focus()');
     }
 
     /**
-     * Removes focus from element.
-     *
-     * @param string $xpath
-     *
-     * @throws UnsupportedDriverActionException When operation not supported by the driver
-     * @throws DriverException                  When the operation cannot be done
+     * @inheritdoc
      */
     public function blur($xpath)
     {
-        // TODO: Implement blur() method.
+        $this->evaluateForElementByXPath($xpath, 'element.blur()');
     }
 
     /**
@@ -633,7 +618,7 @@ class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
      */
     public function keyPress($xpath, $char, $modifier = null)
     {
-        // TODO: Implement keyPress() method.
+        $this->callBaseMethod(__FUNCTION__, func_get_args()); // TODO: Implement keyPress() method.
     }
 
     /**
@@ -648,7 +633,7 @@ class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
      */
     public function keyDown($xpath, $char, $modifier = null)
     {
-        // TODO: Implement keyDown() method.
+        $this->callBaseMethod(__FUNCTION__, func_get_args()); // TODO: Implement keyDown() method.
     }
 
     /**
@@ -663,7 +648,7 @@ class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
      */
     public function keyUp($xpath, $char, $modifier = null)
     {
-        // TODO: Implement keyUp() method.
+        $this->callBaseMethod(__FUNCTION__, func_get_args()); // TODO: Implement keyUp() method.
     }
 
     /**
@@ -677,7 +662,7 @@ class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
      */
     public function dragTo($sourceXpath, $destinationXpath)
     {
-        // TODO: Implement dragTo() method.
+        $this->callBaseMethod(__FUNCTION__, func_get_args()); // TODO: Implement dragTo() method.
     }
 
     /**
@@ -726,18 +711,27 @@ class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
     }
 
     /**
-     * Submits the form.
-     *
-     * @param string $xpath Xpath.
-     *
-     * @throws UnsupportedDriverActionException When operation not supported by the driver
-     * @throws DriverException                  When the operation cannot be done
-     *
-     * @see \Behat\Mink\Element\NodeElement::submitForm
+     * {@inheritdoc}
+     */
+    public function resizeWindow($width, $height, $name = null)
+    {
+        $this->sendAndWaitWithoutResult('resizeWindow', [$width, $height, $name]);
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function maximizeWindow($name = null)
+    {
+        $this->sendAndWaitWithoutResult('maximizeWindow', [$name]);
+    }
+
+    /**
+     * @inheritdoc
      */
     public function submitForm($xpath)
     {
-        // TODO: Implement submitForm() method.
+        $this->evaluateForElementByXPath($xpath, 'element.submit()');
     }
 
     /**
@@ -880,5 +874,12 @@ class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
         );
 
         return $this->evaluateExprWithArgs($expr, $valueArgs, $exprArgs);
+    }
+
+    protected function callBaseMethod($mtd, $args)
+    {
+        static $class;
+        if (!$class) $class = new \ReflectionClass(CoreDriver::class);
+        return $class->getMethod($mtd)->invokeArgs($this, $args);
     }
 }
