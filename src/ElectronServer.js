@@ -122,7 +122,7 @@ Electron.app.on('ready', function() {
 
             visit: function (url, cb) {
                 var extraHeaders = '';
-                for (var key in hdrs)extraHeaders += key + ': ' + hdrs[key] + '\n';
+                for (var key in hdrs) extraHeaders += key + ': ' + hdrs[key] + '\n';
 
                 Logger.debug('visit(%s) (extraHeaders: %s)', url, extraHeaders.replace(/\n/g, '\\n') || 'none');
 

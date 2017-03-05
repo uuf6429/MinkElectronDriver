@@ -247,7 +247,7 @@ class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
     public function setCookie($name, $value = null)
     {
         $this->sendAndWaitWithoutResult('setCookie', [$name, $value]);
-        $result = $this->waitForCookieResponse();
+        $result = $this->waitForAsyncResult('getCookieResponse', [], 0.001);
 
         if (!array_key_exists('set', $result) || !empty($result['error']) || !$result['set']) {
             throw new DriverException(
@@ -266,7 +266,7 @@ class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
     public function getCookie($name)
     {
         $this->sendAndWaitWithoutResult('getCookie', [$name]);
-        $result = $this->waitForCookieResponse();
+        $result = $this->waitForAsyncResult('getCookieResponse', [], 0.001);
 
         if (!array_key_exists('get', $result) || !empty($result['error'])) {
             throw new DriverException(
@@ -300,7 +300,7 @@ class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
             throw new DriverException('Could not start saving page content.');
         }
 
-        $result = $this->waitForGetContentResponse();
+        $result = $this->waitForAsyncResult('getContentResponse', [], 0.001);
 
         if (isset($result['error'])) {
             throw new DriverException('Could saving page content: ' . $result['error']);
@@ -310,17 +310,19 @@ class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
     }
 
     /**
-     * Capture a screenshot of the current window.
-     *
-     * @return string screenshot of MIME type image/* depending
-     *                on driver (e.g., image/png, image/jpeg)
-     *
-     * @throws UnsupportedDriverActionException When operation not supported by the driver
-     * @throws DriverException                  When the operation cannot be done
+     * @inheritdoc
      */
     public function getScreenshot()
     {
-        return $this->callBaseMethod(__FUNCTION__, func_get_args()); // TODO: Implement getScreenshot() method.
+        $this->sendAndWaitWithoutResult('getScreenshot');
+
+        $result = $this->waitForAsyncResult('getScreenshotResponse');
+
+        if (isset($result['error'])) {
+            throw new DriverException('Could not take a screen shot: ' . $result['error']);
+        }
+
+        return $result['result'];
     }
 
     /**
@@ -685,7 +687,7 @@ JS
 
         $this->sendAndWaitWithoutResult('evaluateScript', [rtrim($script, ';') . ';']);
 
-        $result = $this->waitForEvaluateScriptResponse();
+        $result = $this->waitForAsyncResult('getEvaluateScriptResponse', [], 0.0005);
 
         if (isset($result['error'])) {
             throw new DriverException('Could not evaluate script: ' . $result['error']);
@@ -798,42 +800,26 @@ JS
 
     protected function waitForVisited()
     {
-        while (!$this->sendAndWaitWithResult('visited')) {
-            usleep(50000);
-        }
+        $this->waitForAsyncResult('visited', [], 0.05);
     }
 
     /**
-     * @return array
+     * Call a web method repeatedly until timeout expires or a non-null value is returned.
+     * @param string $method The method to retrieve data from.
+     * @param array $arguments Parameters to pass to web method.
+     * @param float $delay Delay between calls in seconds.
+     * @param float $timeout Time out in seconds.
+     * @return mixed
      */
-    protected function waitForCookieResponse()
+    protected function waitForAsyncResult($method, $arguments, $delay, $timeout = null)
     {
-        while (($result = $this->sendAndWaitWithResult('getCookieResponse')) === null) {
-            usleep(1000);
-        }
+        while (($result = $this->sendAndWaitWithResult($method, $arguments)) === null) {
+            usleep($delay * 1000000);
 
-        return $result;
-    }
-
-    /**
-     * @return array
-     */
-    protected function waitForGetContentResponse()
-    {
-        while (($result = $this->sendAndWaitWithResult('getContentResponse')) === null) {
-            usleep(1000);
-        }
-
-        return $result;
-    }
-
-    /**
-     * @return array
-     */
-    protected function waitForEvaluateScriptResponse()
-    {
-        while (($result = $this->sendAndWaitWithResult('getEvaluateScriptResponse')) === null) {
-            usleep(500);
+            // TODO implement timeout
+            /*if($timeout && ){
+                throw new DriverException(sprintf('Method "%s" reached timeout limit of %fs.', $method, $timeout));
+            }*/
         }
 
         return $result;
@@ -876,6 +862,9 @@ JS
         return $this->evaluateExprWithArgs($expr, $valueArgs, $exprArgs);
     }
 
+    /**
+     * @todo To be removed; it's only useful during implementation!
+     */
     protected function callBaseMethod($mtd, $args)
     {
         static $class;
