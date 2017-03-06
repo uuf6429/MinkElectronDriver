@@ -404,7 +404,7 @@ class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
      */
     public function getValue($xpath)
     {
-        return $this->evaluateForElementByXPath($xpath, <<<JS
+        return $this->evaluateForElementByXPath($xpath, <<<'JS'
             (function () {
                 var i;
                 switch (true) {
@@ -443,7 +443,7 @@ JS
      */
     public function setValue($xpath, $value)
     {
-        $this->evaluateForElementByXPath($xpath, <<<JS
+        $this->evaluateForElementByXPath($xpath, <<<'JS'
             (function () {
                 var i;
                 switch (true) {
@@ -551,7 +551,7 @@ JS
      */
     public function doubleClick($xpath)
     {
-        $this->evaluateForElementByXPath($xpath, <<<JS
+        $this->evaluateForElementByXPath($xpath, <<<'JS'
             element.dispatchEvent(new MouseEvent('dblclick', {
                 'view': window,
                 'bubbles': true,
@@ -566,7 +566,7 @@ JS
      */
     public function rightClick($xpath)
     {
-        $this->evaluateForElementByXPath($xpath, <<<JS
+        $this->evaluateForElementByXPath($xpath, <<<'JS'
             element.dispatchEvent(new MouseEvent('contextmenu', {
                 'view': window,
                 'bubbles': true,
