@@ -295,16 +295,20 @@ Electron.app.on('ready', function() {
 
                 executeResponse = null;
 
-                currWindow.webContents
-                    .executeJavaScript(script, true)
-                    .then(
-                        function (result) {
-                            executeResponse = {'result': result};
-                        },
-                        function (error) {
-                            executeResponse = {'error': (error ? (error.stack || error) : '').toString()};
-                        }
-                    );
+                try {
+                    currWindow.webContents
+                        .executeJavaScript(script, true)
+                        .then(
+                            function (result) {
+                                executeResponse = {'result': result};
+                            },
+                            function (error) {
+                                executeResponse = {'error': (error ? (error.stack || error) : '').toString()};
+                            }
+                        );
+                } catch (error) {
+                    executeResponse = {'error': (error ? (error.stack || error) : '').toString()};
+                }
 
                 cb();
             },

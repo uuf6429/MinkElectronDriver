@@ -408,9 +408,17 @@ class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
             (function () {
                 var i;
                 switch (true) {
-                    case element.tagName == "INPUT" && element.type == "checkbox":
+                    case element.tagName == 'SELECT' && element.multiple:
+                        var selected = [];
+                        for (i = 0; i < element.options.length; i++) {
+                            if (element.options[i].selected) {
+                                selected.push(element.options[i].value);
+                            }
+                        }
+                        return selected;
+                    case element.tagName == 'INPUT' && element.type == 'checkbox':
                         return element.checked ? element.value : null;
-                    case element.tagName == "INPUT" && element.type == "radio":
+                    case element.tagName == 'INPUT' && element.type == 'radio':
                         var name = element.getAttribute('name');
                         if (name) {
                             var radioButtons = window.document.getElementsByName(name);
@@ -422,14 +430,6 @@ class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
                             }
                         }
                         return null;
-                    case element.tagName == "SELECT" && element.multiple:
-                        var selected = [];
-                        for (i = 0; i < element.options.length; i++) {
-                            if (element.options[i].selected) {
-                                selected.push(element.options[i].value);
-                            }
-                        }
-                        return selected;
                     default:
                         return element.value;
                 }
@@ -439,19 +439,45 @@ JS
     }
 
     /**
-     * Sets element's value by it's XPath query.
-     *
-     * @param string $xpath
-     * @param string|bool|array $value
-     *
-     * @throws UnsupportedDriverActionException When operation not supported by the driver
-     * @throws DriverException                  When the operation cannot be done
-     *
-     * @see \Behat\Mink\Element\NodeElement::setValue
+     * @inheritdoc
      */
     public function setValue($xpath, $value)
     {
-        $this->callBaseMethod(__FUNCTION__, func_get_args()); // TODO: Implement setValue() method.
+        $this->evaluateForElementByXPath($xpath, <<<JS
+            (function () {
+                var i;
+                switch (true) {
+                    case element.tagName == 'SELECT':
+                        if (value && value.constructor.name == 'Array') {
+                            // select multiple items
+                            for (i = 0; i < element.options.length; i++) {
+                                element.options[i].selected = value.indexOf(element.options[i].value) !== -1;
+                            }
+                            return;
+                        } else {
+                            // select one item
+                            element.value = value;
+                            return;
+                        }
+                    case element.tagName == 'INPUT' && element.type == 'checkbox':
+                        throw 'Not supported yet.';
+                    case element.tagName == 'INPUT' && element.type == 'radio':
+                        throw 'Not supported yet.';
+                    case element.tagName == 'INPUT' && element.type == 'file':
+                        throw 'Not supported yet.';
+                    default:
+                        if (element.tagName == 'INPUT' || element.tagName == 'TEXTAREA') {
+                            value = String.fromCharCode(8, 46).repeat(element.value.length) + value;
+                        }
+                        element.value = value; // TODO switch to code more similar to the one below...
+                        //element.postValue(array('value' => array($value)));
+                        //this->trigger($xpath, 'change');
+                }
+            })();
+JS
+            ,
+            ['value' => $value]
+        );
     }
 
     /**
@@ -536,16 +562,18 @@ JS
     }
 
     /**
-     * Right-clicks button or link located by it's XPath query.
-     *
-     * @param string $xpath
-     *
-     * @throws UnsupportedDriverActionException When operation not supported by the driver
-     * @throws DriverException                  When the operation cannot be done
+     * @inheritdoc
      */
     public function rightClick($xpath)
     {
-        $this->callBaseMethod(__FUNCTION__, func_get_args()); // TODO: Implement rightClick() method.
+        $this->evaluateForElementByXPath($xpath, <<<JS
+            element.dispatchEvent(new MouseEvent('contextmenu', {
+                'view': window,
+                'bubbles': true,
+                'cancelable': true
+            }))
+JS
+        );
     }
 
     /**
@@ -687,7 +715,7 @@ JS
 
         $this->sendAndWaitWithoutResult('evaluateScript', [rtrim($script, ';') . ';']);
 
-        $result = $this->waitForAsyncResult('getEvaluateScriptResponse', [], 0.0005);
+        $result = $this->waitForAsyncResult('getEvaluateScriptResponse', [], 0.001);
 
         if (isset($result['error'])) {
             throw new DriverException('Could not evaluate script: ' . $result['error']);
@@ -800,7 +828,7 @@ JS
 
     protected function waitForVisited()
     {
-        $this->waitForAsyncResult('visited', [], 0.05);
+        $this->waitForAsyncResult('visited');
     }
 
     /**
