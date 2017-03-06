@@ -322,7 +322,7 @@ class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
             throw new DriverException('Could not take a screen shot: ' . $result['error']);
         }
 
-        return $result['result'];
+        return base64_decode($result['base64data']);
     }
 
     /**

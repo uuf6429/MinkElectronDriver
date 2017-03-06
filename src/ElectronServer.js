@@ -346,7 +346,7 @@ Electron.app.on('ready', function() {
 
                 screenshotResponse = null;
                 currWindow.capturePage(currWindow.getContentBounds(), function (image) {
-                    screenshotResponse = {'data': image.toPNG().toString()};
+                    screenshotResponse = {'base64data': image.toPNG().toString('base64')};
                 });
 
                 cb();
