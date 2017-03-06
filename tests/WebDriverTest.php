@@ -61,18 +61,6 @@ class WebDriverTest extends TestCase
         $this->assertTrue($this->driver->isStarted());
     }
 
-    public function testWindowResizingNotSupported()
-    {
-        $this->expectException(UnsupportedDriverActionException::class);
-        $this->driver->resizeWindow(10, 10);
-    }
-
-    public function testWindowMaximizingNotSupported()
-    {
-        $this->expectException(UnsupportedDriverActionException::class);
-        $this->driver->maximizeWindow();
-    }
-
     public function testOverwritingCookies()
     {
         $this->driver->visit('http://google.com');
