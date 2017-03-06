@@ -3,6 +3,7 @@
 namespace Behat\Mink\Tests\Driver\Custom;
 
 use Behat\Mink\Driver\ElectronDriver;
+use Behat\Mink\Exception\DriverException;
 use Behat\Mink\Exception\UnsupportedDriverActionException;
 use Behat\Mink\Tests\Driver\ElectronConfig;
 use PHPUnit\Framework\TestCase;
@@ -104,11 +105,26 @@ class WebDriverTest extends TestCase
         $this->assertSame('', $this->driver->getContent());
     }
 
-    public function testScriptExecution()
+    /**
+     * @param string $expression
+     * @param mixed $expectedResult
+     * @param \Exception|string|null $expectedException
+     *
+     * @dataProvider scriptExecutionDataProvider
+     */
+    public function testScriptExecution($expression, $expectedResult, $expectedException = null)
     {
+        if ($expectedException) {
+            if (is_string($expectedException)) {
+                $this->expectException($expectedException);
+            } else {
+                $this->expectException(get_class($expectedException));
+                $this->expectExceptionMessage($expectedException->getMessage());
+            }
+        }
+
         $this->driver->visit('https://httpbin.org/status/200');
-        $this->assertSame(20, $this->driver->evaluateScript('5 * 4'));
-        $this->assertSame(4.6, $this->driver->evaluateScript('2.3 * 2'));
+        $this->assertSame($expectedResult, $this->driver->evaluateScript($expression));
     }
 
     public function testCustomRequestHeader()
@@ -122,5 +138,34 @@ class WebDriverTest extends TestCase
     {
         $this->driver->visit('https://httpbin.org/response-headers?X-Custom-Response=SomeResponseValue');
         $this->assertContains('SomeResponseValue', json_encode($this->driver->getResponseHeaders()));
+    }
+
+    /**
+     * @return array
+     */
+    public function scriptExecutionDataProvider()
+    {
+        return [
+            'integer calculation' => [
+                '$expression' => '5 * 4',
+                '$expectedResult' => 20,
+                '$expectedException' => null,
+            ],
+            'float calculation' => [
+                '$expression' => '2.3 * 2',
+                '$expectedResult' => 4.6,
+                '$expectedException' => null,
+            ],
+            'syntax error' => [
+                '$expression' => '*grd',
+                '$expectedResult' => null,
+                '$expectedException' => new DriverException('Could not evaluate script: Uncaught SyntaxError: Unexpected token *'),
+            ],
+            'undefined variable' => [
+                '$expression' => 'someVar + 1',
+                '$expectedResult' => null,
+                '$expectedException' => new DriverException('Could not evaluate script: Uncaught ReferenceError: someVar is not defined'),
+            ],
+        ];
     }
 }

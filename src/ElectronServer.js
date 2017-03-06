@@ -75,10 +75,29 @@ Electron.app.on('ready', function() {
 
             window.webContents.once('did-finish-load', function () {
                 pageVisited = true;
+
+                Logger.debug('Enabling page error capture...');
+
+                window.webContents
+                    .executeJavaScript('(function () {\
+                        var oldOnError = window.onerror;\
+                        window.onerror = function (error) {\
+                            var remote = require("electron").remote;\
+                            var setErrorFn = remote.getGlobal("setExecutionError");\
+                            if (setErrorFn) setErrorFn(error);\
+                            if (oldOnError) oldOnError();\
+                        };\
+                    })();', true);
+
                 Logger.info('Page finished loading.');
             });
         }
     ;
+
+    global.setExecutionError = function (error) {
+        Logger.error('Script evaluation failed internally: %s', (error ? (error.stack || error) : '').toString());
+        executeResponse = {'error': (error ? (error.stack || error) : '').toString()};
+    };
 
     Electron.app.on(
         'browser-window-created',
@@ -300,13 +319,16 @@ Electron.app.on('ready', function() {
                         .executeJavaScript(script, true)
                         .then(
                             function (result) {
+                                Logger.debug('Evaluated script with result: %j', result);
                                 executeResponse = {'result': result};
                             },
                             function (error) {
+                                Logger.error('Script evaluation failed: %s', (error ? (error.stack || error) : '').toString());
                                 executeResponse = {'error': (error ? (error.stack || error) : '').toString()};
                             }
                         );
                 } catch (error) {
+                    Logger.error('Script evaluation failed prematurely: %s', (error ? (error.stack || error) : '').toString());
                     executeResponse = {'error': (error ? (error.stack || error) : '').toString()};
                 }
 

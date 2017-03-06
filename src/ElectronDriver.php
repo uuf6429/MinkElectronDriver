@@ -715,7 +715,7 @@ JS
 
         $this->sendAndWaitWithoutResult('evaluateScript', [rtrim($script, ';') . ';']);
 
-        $result = $this->waitForAsyncResult('getEvaluateScriptResponse', [], 0.001);
+        $result = $this->waitForAsyncResult('getEvaluateScriptResponse', [], 0.005);
 
         if (isset($result['error'])) {
             throw new DriverException('Could not evaluate script: ' . $result['error']);
