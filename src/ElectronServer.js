@@ -234,16 +234,27 @@ Electron.app.on('ready', function() {
                 Logger.debug('setCookie(%s, %s)', name, value);
 
                 cookieResponse = null;
-                currWindow.webContents.session.cookies.set( // TODO if value is null call remove cookie?
-                    {
-                        'url': currWindow.webContents.getURL(),
-                        'name': name,
-                        'value': value
-                    },
-                    function (error) {
-                        cookieResponse = {'set': !error, 'error': (error ? (error.stack || error) : '').toString()};
-                    }
-                );
+
+                if (value === null) {
+                    currWindow.webContents.session.cookies.remove(
+                        currWindow.webContents.getURL(),
+                        name,
+                        function (error) {
+                            cookieResponse = {'set': !error, 'error': (error ? (error.stack || error) : '').toString()};
+                        }
+                    );
+                } else {
+                    currWindow.webContents.session.cookies.set(
+                        {
+                            'url': currWindow.webContents.getURL(),
+                            'name': name,
+                            'value': value
+                        },
+                        function (error) {
+                            cookieResponse = {'set': !error, 'error': (error ? (error.stack || error) : '').toString()};
+                        }
+                    );
+                }
 
                 cb();
             },
