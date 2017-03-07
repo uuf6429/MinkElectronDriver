@@ -11,6 +11,7 @@ const Electron = require('electron'),
     Temp = require('temp'),
     FS = require('fs'),
     Util = require('util'),
+    QueryString = require('querystring'),
     // See PSR-3 LogLevel constants.
     // TODO in the future, support switching log format (console|json)
     Logger = {
@@ -258,7 +259,7 @@ Electron.app.on('ready', function() {
                     },
                     function (error, cookies) {
                         cookieResponse = {
-                            'get': cookies.length ? cookies[0].value : null,
+                            'get': cookies.length ? QueryString.unescape(cookies[0].value) : null,
                             'error': (error ? (error.stack || error) : '').toString()
                         };
                     }

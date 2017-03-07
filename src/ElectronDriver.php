@@ -466,12 +466,12 @@ JS
                     case element.tagName == 'INPUT' && element.type == 'file':
                         throw 'Not supported yet.';
                     default:
-                        if (element.tagName == 'INPUT' || element.tagName == 'TEXTAREA') {
-                            value = String.fromCharCode(8, 46).repeat(element.value.length) + value;
-                        }
-                        element.value = value; // TODO switch to code more similar to the one below...
-                        //element.postValue(array('value' => array($value)));
-                        //this->trigger($xpath, 'change');
+                        element.value = value;
+                        element.dispatchEvent(new Event('change', {
+                            'view': window,
+                            'bubbles': true,
+                            'cancelable': true
+                        }));
                 }
             })();
 JS
