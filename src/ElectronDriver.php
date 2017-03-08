@@ -247,7 +247,7 @@ class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
     public function setCookie($name, $value = null)
     {
         $this->sendAndWaitWithoutResult('setCookie', [$name, $value]);
-        $result = $this->waitForAsyncResult('getCookieResponse', [], 0.001);
+        $result = $this->waitForAsyncResult('getCookieResponse', []);
 
         if (!array_key_exists('set', $result) || !empty($result['error']) || !$result['set']) {
             throw new DriverException(
@@ -266,7 +266,7 @@ class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
     public function getCookie($name)
     {
         $this->sendAndWaitWithoutResult('getCookie', [$name]);
-        $result = $this->waitForAsyncResult('getCookieResponse', [], 0.001);
+        $result = $this->waitForAsyncResult('getCookieResponse');
 
         if (!array_key_exists('get', $result) || !empty($result['error'])) {
             throw new DriverException(
@@ -300,7 +300,7 @@ class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
             throw new DriverException('Could not start saving page content.');
         }
 
-        $result = $this->waitForAsyncResult('getContentResponse', [], 0.001);
+        $result = $this->waitForAsyncResult('getContentResponse');
 
         if (isset($result['error'])) {
             throw new DriverException('Could not save page content: ' . $result['error']);
@@ -453,26 +453,30 @@ JS
                             for (i = 0; i < element.options.length; i++) {
                                 element.options[i].selected = value.indexOf(element.options[i].value) !== -1;
                             }
-                            return;
                         } else {
                             // select one item
                             element.value = value;
-                            return;
                         }
+                        break;
                     case element.tagName == 'INPUT' && element.type == 'checkbox':
-                        throw 'Not supported yet.';
+                        element.checked = true;
+                        break;
                     case element.tagName == 'INPUT' && element.type == 'radio':
-                        throw 'Not supported yet.';
+                        // TODO should we uncheck other related radio buttons? chrome seems to do it automatically
+                        element.checked = true;
+                        break;
                     case element.tagName == 'INPUT' && element.type == 'file':
-                        throw 'Not supported yet.';
+                        throw 'Changing ' + element.type + ' is not supported yet.';
                     default:
                         element.value = value;
-                        element.dispatchEvent(new Event('change', {
-                            'view': window,
-                            'bubbles': true,
-                            'cancelable': true
-                        }));
+                        break;
                 }
+                
+                element.dispatchEvent(new Event('change', {
+                    'view': window,
+                    'bubbles': true,
+                    'cancelable': true
+                }));
             })();
 JS
             ,
@@ -505,37 +509,20 @@ JS
     }
 
     /**
-     * Selects option from select field or value in radio group located by it's XPath query.
-     *
-     * @param string $xpath
-     * @param string $value
-     * @param Boolean $multiple
-     *
-     * @throws UnsupportedDriverActionException When operation not supported by the driver
-     * @throws DriverException                  When the operation cannot be done
-     *
-     * @see \Behat\Mink\Element\NodeElement::selectOption
+     * @inheritdoc
      */
     public function selectOption($xpath, $value, $multiple = false)
     {
-        $this->callBaseMethod(__FUNCTION__, func_get_args()); // TODO: Implement selectOption() method.
+        $this->setValue($xpath, ($multiple && !is_array($value) && !is_null($value)) ? [$value] : $value);
     }
 
     /**
-     * Checks whether select option, located by it's XPath query, is selected.
-     *
-     * @param string $xpath
-     *
-     * @return Boolean
-     *
-     * @throws UnsupportedDriverActionException When operation not supported by the driver
-     * @throws DriverException                  When the operation cannot be done
-     *
-     * @see \Behat\Mink\Element\NodeElement::isSelected
+     * @inheritdoc
      */
     public function isSelected($xpath)
     {
-        return $this->callBaseMethod(__FUNCTION__, func_get_args()); // TODO: Implement isSelected() method.
+        // TODO what if parentElement points to, for example, an <optgoup>? this needs to be handled properly
+        return $this->evaluateForElementByXPath($xpath, 'element.parentElement.value == element.value');
     }
 
     /**
@@ -715,7 +702,7 @@ JS
 
         $this->sendAndWaitWithoutResult('evaluateScript', [rtrim($script, ';') . ';']);
 
-        $result = $this->waitForAsyncResult('getEvaluateScriptResponse', [], 0.005);
+        $result = $this->waitForAsyncResult('getEvaluateScriptResponse');
 
         if (isset($result['error'])) {
             throw new DriverException('Could not evaluate script: ' . $result['error']);
