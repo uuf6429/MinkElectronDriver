@@ -66,33 +66,7 @@ Electron.app.on('ready', function() {
         lastHeaders = null,
         executeResponse = null,
         cookieResponse = null,
-        screenshotResponse = null,
-        /**
-         * @param {Electron.BrowserWindow} window
-         */
-        setupPageVisited = function (window) {
-            pageVisited = null;
-            lastStatusCode = null;
-
-            window.webContents.once('did-finish-load', function () {
-                pageVisited = true;
-
-                Logger.debug('Enabling page error capture...');
-
-                window.webContents
-                    .executeJavaScript('(function () {\
-                        var oldOnError = window.onerror;\
-                        window.onerror = function (error) {\
-                            var remote = require("electron").remote;\
-                            var setErrorFn = remote.getGlobal("setExecutionError");\
-                            if (setErrorFn) setErrorFn(error);\
-                            if (oldOnError) oldOnError();\
-                        };\
-                    })();', true);
-
-                Logger.info('Page finished loading.');
-            });
-        }
+        screenshotResponse = null
     ;
 
     global.setExecutionError = function (error) {
@@ -140,20 +114,49 @@ Electron.app.on('ready', function() {
                 cb();
             },
 
+            clearVisitedResponse: function (cb) {
+                Logger.debug('clearVisitedResponse()');
+
+                pageVisited = null;
+                lastStatusCode = null;
+
+                (function (win) {
+                    win.webContents.once('did-finish-load', function () {
+                        pageVisited = true;
+
+                        Logger.debug('Enabling page error capture...');
+
+                        win.webContents
+                            .executeJavaScript('(function () {\
+                                var oldOnError = window.onerror;\
+                                window.onerror = function (error) {\
+                                    var remote = require("electron").remote;\
+                                    var setErrorFn = remote.getGlobal("setExecutionError");\
+                                    if (setErrorFn) setErrorFn(error);\
+                                    if (oldOnError) oldOnError();\
+                                };\
+                            })();', true);
+
+                        Logger.info('Page finished loading.');
+                    });
+                })(currWindow);
+
+                cb();
+            },
+
             visit: function (url, cb) {
                 var extraHeaders = '';
                 for (var key in hdrs) extraHeaders += key + ': ' + hdrs[key] + '\n';
 
                 Logger.debug('visit(%s) (extraHeaders: %s)', url, extraHeaders.replace(/\n/g, '\\n') || 'none');
 
-                setupPageVisited(currWindow);
                 currWindow.loadURL(url, {'extraHeaders': extraHeaders});
 
                 cb();
             },
 
-            visited: function (cb) {
-                Logger.debug('visited() => %s', pageVisited);
+            getVisitedResponse: function (cb) {
+                Logger.debug('getVisitedResponse() => %s', pageVisited);
 
                 cb(pageVisited);
             },
@@ -167,7 +170,6 @@ Electron.app.on('ready', function() {
             reload: function (cb) {
                 Logger.debug('reload()');
 
-                setupPageVisited(currWindow);
                 currWindow.webContents.reload();
 
                 cb();
@@ -176,7 +178,6 @@ Electron.app.on('ready', function() {
             back: function (cb) {
                 Logger.debug('back()');
 
-                setupPageVisited(currWindow);
                 currWindow.webContents.goBack();
 
                 cb();
@@ -185,7 +186,6 @@ Electron.app.on('ready', function() {
             forward: function (cb) {
                 Logger.debug('forward()');
 
-                setupPageVisited(currWindow);
                 currWindow.webContents.goForward();
 
                 cb();

@@ -157,6 +157,7 @@ class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
      */
     public function visit($url)
     {
+        $this->clearVisited();
         $this->sendAndWaitWithoutResult('visit', [$url]);
         $this->waitForVisited();
     }
@@ -174,6 +175,7 @@ class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
      */
     public function reload()
     {
+        $this->clearVisited();
         $this->sendAndWaitWithoutResult('reload');
         $this->waitForVisited();
     }
@@ -183,6 +185,7 @@ class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
      */
     public function forward()
     {
+        $this->clearVisited();
         $this->sendAndWaitWithoutResult('forward');
         $this->waitForVisited();
     }
@@ -192,6 +195,7 @@ class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
      */
     public function back()
     {
+        $this->clearVisited();
         $this->sendAndWaitWithoutResult('back');
         $this->waitForVisited();
     }
@@ -748,7 +752,10 @@ JS
      */
     public function submitForm($xpath)
     {
+        // TODO we perform submission synchronously for stability... could this be a problem with dynamic/js forms?
+        $this->clearVisited();
         $this->evaluateForElementByXPath($xpath, 'element.submit()');
+        $this->waitForVisited();
     }
 
     /**
@@ -813,9 +820,14 @@ JS
         }
     }
 
+    protected function clearVisited()
+    {
+        $this->sendAndWaitWithoutResult('clearVisitedResponse');
+    }
+
     protected function waitForVisited()
     {
-        $this->waitForAsyncResult('visited');
+        $this->waitForAsyncResult('getVisitedResponse');
     }
 
     /**
