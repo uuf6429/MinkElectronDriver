@@ -463,11 +463,11 @@ JS
                         }
                         break;
                     case element.tagName == 'INPUT' && element.type == 'checkbox':
-                        element.checked = true;
+                        element.checked = value;
                         break;
                     case element.tagName == 'INPUT' && element.type == 'radio':
                         // TODO should we uncheck other related radio buttons? chrome seems to do it automatically
-                        element.checked = true;
+                        element.checked = value;
                         break;
                     case element.tagName == 'INPUT' && element.type == 'file':
                         throw 'Changing ' + element.type + ' is not supported yet.';
