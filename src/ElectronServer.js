@@ -66,12 +66,24 @@ Electron.app.on('ready', function() {
         lastHeaders = null,
         executeResponse = null,
         cookieResponse = null,
-        screenshotResponse = null
+        screenshotResponse = null,
+        windowWillUnload = false
     ;
 
     global.setExecutionError = function (error) {
         Logger.error('Script evaluation failed internally: %s', (error ? (error.stack || error) : '').toString());
         executeResponse = {'error': (error ? (error.stack || error) : '').toString()};
+    };
+
+    global.setWindowUnloading = function (value) {
+        if (value) {
+            Logger.debug('Window will be unloaded.');
+
+            pageVisited = null;
+            lastStatusCode = null;
+        }
+
+        windowWillUnload = value;
     };
 
     Electron.app.on(
@@ -91,6 +103,32 @@ Electron.app.on('ready', function() {
                 .on('did-get-response-details', function (event, status, newURL, originalURL, httpResponseCode, requestMethod, referrer, headers, resourceType) {
                     lastStatusCode = httpResponseCode;
                     lastHeaders = headers;
+                })
+                .on('did-finish-load', function () {
+                    pageVisited = true;
+
+                    Logger.debug('Enabling page error capture...');
+
+                    window.webContents
+                        .executeJavaScript(
+                            '(function () {\
+                                var oldOnError = window.onerror;\
+                                window.onerror = function (error) {\
+                                    var remote = require("electron").remote;\
+                                    var setErrorFn = remote.getGlobal("setExecutionError");\
+                                    if (setErrorFn) setErrorFn(error);\
+                                    if (oldOnError) oldOnError();\
+                                };\
+                                var oldOnUnload = window.onbeforeunload;\
+                                window.onbeforeunload = function (error) {\
+                                    var remote = require("electron").remote;\
+                                    var setUnloadFn = remote.getGlobal("setWindowUnloading");\
+                                    if (setUnloadFn) setUnloadFn(true);\
+                                    if (oldOnUnload) oldOnUnload();\
+                                };\
+                            })();', true);
+
+                    Logger.info('Page finished loading.');
                 })
             ;
         }
@@ -119,27 +157,6 @@ Electron.app.on('ready', function() {
 
                 pageVisited = null;
                 lastStatusCode = null;
-
-                (function (win) {
-                    win.webContents.once('did-finish-load', function () {
-                        pageVisited = true;
-
-                        Logger.debug('Enabling page error capture...');
-
-                        win.webContents
-                            .executeJavaScript('(function () {\
-                                var oldOnError = window.onerror;\
-                                window.onerror = function (error) {\
-                                    var remote = require("electron").remote;\
-                                    var setErrorFn = remote.getGlobal("setExecutionError");\
-                                    if (setErrorFn) setErrorFn(error);\
-                                    if (oldOnError) oldOnError();\
-                                };\
-                            })();', true);
-
-                        Logger.info('Page finished loading.');
-                    });
-                })(currWindow);
 
                 cb();
             },
@@ -248,7 +265,7 @@ Electron.app.on('ready', function() {
                         {
                             'url': currWindow.webContents.getURL(),
                             'name': name,
-                            'value': value
+                            'value': QueryString.escape(value)
                         },
                         function (error) {
                             cookieResponse = {'set': !error, 'error': (error ? (error.stack || error) : '').toString()};
@@ -327,6 +344,8 @@ Electron.app.on('ready', function() {
                 executeResponse = null;
 
                 try {
+                    global.setWindowUnloading(false);
+
                     currWindow.webContents
                         .executeJavaScript(script, true)
                         .then(
@@ -348,6 +367,10 @@ Electron.app.on('ready', function() {
             },
 
             getEvaluateScriptResponse: function (cb) {
+                if (executeResponse) {
+                    executeResponse['redirect'] = windowWillUnload;
+                }
+
                 Logger.debug('getEvaluateScriptResponse() => %j', executeResponse);
 
                 cb(executeResponse);

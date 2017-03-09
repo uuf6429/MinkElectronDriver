@@ -712,6 +712,10 @@ JS
             throw new DriverException('Could not evaluate script: ' . $result['error']);
         }
 
+        if (isset($result['redirect']) && $result['redirect']) {
+            $this->waitForVisited();
+        }
+
         return $result['result'];
     }
 
@@ -752,10 +756,7 @@ JS
      */
     public function submitForm($xpath)
     {
-        // TODO we perform submission synchronously for stability... could this be a problem with dynamic/js forms?
-        $this->clearVisited();
         $this->evaluateForElementByXPath($xpath, 'element.submit()');
-        $this->waitForVisited();
     }
 
     /**
@@ -764,9 +765,15 @@ JS
     protected function buildServerCmd()
     {
         // TODO Probably we can just do "ElectronServer <socket>" thanks to npm "bin" option... not sure though
+        $electronPath = __DIR__
+            . DIRECTORY_SEPARATOR . '..'
+            . DIRECTORY_SEPARATOR . 'node_modules'
+            . DIRECTORY_SEPARATOR . '.bin'
+            . DIRECTORY_SEPARATOR . 'electron';
+
         return sprintf(
             '%s %s %s%s',
-            escapeshellarg(__DIR__ . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . 'node_modules' . DIRECTORY_SEPARATOR . '.bin' . DIRECTORY_SEPARATOR . 'electron'),
+            escapeshellarg($electronPath),
             escapeshellarg(__DIR__ . DIRECTORY_SEPARATOR . 'ElectronServer.js'),
             escapeshellarg($this->electronServerAddress),
             $this->showElectron ? ' show' : ''
