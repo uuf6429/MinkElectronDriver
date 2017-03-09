@@ -818,7 +818,6 @@ JS
             throw new DriverException(
                 sprintf(
                     "Unexpected response from server; no result was not expected.\nMethod: %s\nArguments: %s\nResponse: %s",
-                    count($result),
                     $mtd,
                     var_export($args, true),
                     var_export($result, true)

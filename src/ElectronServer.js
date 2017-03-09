@@ -77,7 +77,7 @@ Electron.app.on('ready', function() {
 
     global.setWindowUnloading = function (value) {
         if (value) {
-            Logger.debug('Window will be unloaded.');
+            Logger.info('Page is unloading.');
 
             pageVisited = null;
             lastStatusCode = null;
