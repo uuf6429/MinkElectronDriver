@@ -481,7 +481,13 @@ JS
      */
     public function check($xpath)
     {
-        $this->evaluateForElementByXPath($xpath, '(element.checked === false) ? element.click() : false');
+        $this->evaluateForElementByXPath($xpath, <<<'JS'
+            (function () {
+                if (!element || element.type != 'checkbox' || element.type != 'radio') throw 'Element is not a valid checkbox or radio button.';
+                if (element.checked === false) element.click();
+            })();
+JS
+        );
     }
 
     /**
@@ -489,7 +495,13 @@ JS
      */
     public function uncheck($xpath)
     {
-        $this->evaluateForElementByXPath($xpath, '(element.checked === true) ? element.click() : false');
+        $this->evaluateForElementByXPath($xpath, <<<'JS'
+            (function () {
+                if (!element || element.type != 'checkbox' || element.type != 'radio') throw 'Element is not a valid checkbox or radio button.';
+                if (element.checked === true) element.click();
+            })();
+JS
+        );
     }
 
     /**
