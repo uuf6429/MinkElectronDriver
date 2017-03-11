@@ -1,8 +1,26 @@
 if (process.argv.length < 3
-    || process.argv.length > 4
+    || process.argv.length > 5
     || !process.versions['electron']
 ) {
-    throw('Correct usage is: electron ElectronServer.js <host:port> [show]');
+    var RED = "\033[31m",
+        YEL = "\033[33m",
+        GRN = "\033[32m",
+        RST = "\033[0m",
+        NL = "\n"
+    ;
+
+    process.stdout.write(RED + 'Command called incorrectly.' + RST + NL);
+    process.stdout.write(NL);
+    process.stdout.write(YEL + 'Usage:' + RST + NL);
+    process.stdout.write('  electron ElectronServer.js <host:port> [show|hide] [log level]' + NL);
+    process.stdout.write(NL);
+    process.stdout.write(YEL + 'Parameters:' + RST + NL);
+    process.stdout.write('  ' + GRN + '<host:port>' + RST + '   (Required) Specifies the IP / port the server should listen on.' + NL);
+    process.stdout.write('  ' + GRN + '[show|hide]' + RST + '   Show or hide Electron window (default is hide).' + NL);
+    process.stdout.write('  ' + GRN + '[log level]' + RST + '   Sets logging verbosity (default is "debug").' + NL);
+    process.stdout.write('                See PSR-3 LogLevel constants for available values.' + NL);
+
+    process.exit(1);
 }
 
 const Electron = require('electron'),
@@ -15,14 +33,23 @@ const Electron = require('electron'),
     // See PSR-3 LogLevel constants.
     // TODO in the future, support switching log format (console|json)
     Logger = {
+        LogLevel: 0,
+        LevelMap: {
+            'debug': 0,
+            'info': 1,
+            'warning': 2,
+            'error': 3
+        },
         log: function(level, message, context) {
-            context = context || {};
-            context.srcTime = Date.now() / 1000;
-            process.stdout.write(JSON.stringify({
-                    'level': level,
-                    'message': message,
-                    'context': context
-                }) + '\n');
+            if (Logger.LogLevel <= Logger.LevelMap[level]) {
+                context = context || {};
+                context.srcTime = Date.now() / 1000;
+                process.stdout.write(JSON.stringify({
+                        'level': level,
+                        'message': message,
+                        'context': context
+                    }) + '\n');
+            }
         },
         debug: function(){
             this.log('debug', Util.format.apply(null, arguments));
@@ -40,11 +67,16 @@ const Electron = require('electron'),
 ;
 
 var showWindow = process.argv[3] === 'show';
+Logger.LogLevel = Logger.LevelMap[process.argv[4] || ''] || 0;
 
 // Global exception handler
 process.on('uncaughtException', function (error) {
     Logger.error('Uncaught exception: %s', (error ? (error.stack || error) : '').toString());
+    process.exit(1);
 });
+
+// Show stack trace for deprecations (see https://electron.atom.io/blog/2015/11/17/electron-api-changes#deprecation-warnings)
+process.traceDeprecation = true;
 
 // Ensures stdout/err is always flushed before exit. See: https://github.com/nodejs/node/issues/6456
 [process.stdout, process.stderr].forEach(function (s) {
@@ -105,9 +137,7 @@ Electron.app.on('ready', function() {
                     lastHeaders = headers;
                 })
                 .on('did-finish-load', function () {
-                    pageVisited = true;
-
-                    Logger.debug('Enabling page error capture...');
+                    Logger.debug('Attaching JS to page...');
 
                     window.webContents
                         .executeJavaScript(
@@ -126,9 +156,17 @@ Electron.app.on('ready', function() {
                                     if (setUnloadFn) setUnloadFn(true);\
                                     if (oldOnUnload) oldOnUnload();\
                                 };\
-                            })();', true);
-
-                    Logger.info('Page finished loading.');
+                            })();', true)
+                        .then(
+                            function () {
+                                Logger.info('Page finished loading and JS attached successfully.');
+                                pageVisited = true;
+                            },
+                            function (error) {
+                                Logger.error('Could not attach JS to page: %s', (error ? (error.stack || error) : '').toString());
+                            }
+                        )
+                    ;
                 })
             ;
         }
@@ -139,7 +177,7 @@ Electron.app.on('ready', function() {
     var server = DNode(
         {
             reset: function (cb) {
-                Logger.debug('reset()');
+                Logger.info('Resetting page (clearing headers, session and auth).');
 
                 hdrs = {};
                 auth = {'user': false, 'pass': ''};
@@ -308,36 +346,6 @@ Electron.app.on('ready', function() {
                 cb(lastStatusCode);
             },
 
-            getContent: function (cb) {
-                lastContentSaved = null;
-                lastContentPath = Temp.path({'suffix': '.data'});
-                var started = currWindow.webContents.savePage(lastContentPath, 'HTMLOnly', function (error) {
-                    lastContentSaved = error || true;
-                });
-
-                Logger.debug('getContent() => %s (saving to %s)', started, lastContentPath);
-
-                cb(started);
-            },
-
-            getContentResponse: function (cb) {
-                var lastContent = null;
-
-                if (lastContentSaved) {
-                    if (lastContentSaved === true) {
-                        lastContent = {'content': FS.readFileSync(lastContentPath).toString()};
-                    } else {
-                        lastContent = {'error': lastContentSaved};
-                    }
-
-                    FS.unlink(lastContentPath);
-                }
-
-                Logger.debug('getContentResponse() => %s (reading from %s)', JSON.stringify(lastContent), lastContentPath);
-
-                cb(lastContent);
-            },
-
             evaluateScript: function (script, cb) {
                 Logger.debug('evaluateScript(%s)', script);
 
@@ -430,5 +438,6 @@ Electron.app.on('ready', function() {
     );
 
     var address = /(.*):(\d+)/.exec(process.argv[2]);
+    if (!address) throw 'Could not parse the supplied address, expected "host:port".';
     server.listen(address[1], parseInt(address[2]));
 });

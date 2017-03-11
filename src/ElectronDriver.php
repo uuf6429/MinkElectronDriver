@@ -76,7 +76,7 @@ class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
                         ) {
                             $this->logger->log($record['level'], $record['message'], (array)$record['context'] ?: []);
                         } else {
-                            $this->logger->alert('Unexpected Electron server output line "{output}".', ['stdio' => $type, 'output' => $line]);
+                            $this->logger->alert('Unexpected Electron server output line {output}.', ['stdio' => $type, 'output' => $line]);
                         }
                     }
                 }, explode("\n", $output));
@@ -298,19 +298,7 @@ class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
      */
     public function getContent()
     {
-        $started = $this->sendAndWaitWithResult('getContent');
-
-        if (!$started) {
-            throw new DriverException('Could not start saving page content.');
-        }
-
-        $result = $this->waitForAsyncResult('getContentResponse');
-
-        if (isset($result['error'])) {
-            throw new DriverException('Could not save page content: ' . $result['error']);
-        }
-
-        return $result['content'];
+        return $this->getOuterHtml('//html');
     }
 
     /**
