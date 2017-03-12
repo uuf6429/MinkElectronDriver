@@ -376,7 +376,8 @@ class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
      */
     public function getText($xpath)
     {
-        return $this->evaluateForElementByXPath($xpath, 'element.innerText');
+        $text = $this->evaluateForElementByXPath($xpath, 'element.innerText');
+        return str_replace(["\r\n", "\r", "\n"], ' ', $text);;
     }
 
     /**
