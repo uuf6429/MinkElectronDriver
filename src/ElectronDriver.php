@@ -298,7 +298,20 @@ class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
      */
     public function getContent()
     {
-        return $this->getOuterHtml('//html');
+        //return $this->getOuterHtml('//html');
+        $started = $this->sendAndWaitWithResult('getContent');
+
+        if (!$started) {
+            throw new DriverException('Could not start saving page content.');
+        }
+
+        $result = $this->waitForAsyncResult('getContentResponse');
+
+        if (isset($result['error'])) {
+            throw new DriverException('Could not save page content: ' . $result['error']);
+        }
+
+        return $result['content'];
     }
 
     /**
@@ -902,6 +915,7 @@ JS
      */
     protected function doSetValue($xpath, $value, $preCode = '')
     {
+        // TODO See also: https://github.com/segmentio/nightmare/blob/5ee597175861023cd23ccc5421f4fe3e00e54159/lib/runner.js#L369
         $this->evaluateForElementByXPath($xpath, <<<'JS'
             (function () {
                 if (preCode) preCode();

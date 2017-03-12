@@ -102,7 +102,16 @@ class WebDriverTest extends TestCase
 
         $this->driver->visit('https://httpbin.org/status/500');
         $this->assertSame(500, $this->driver->getStatusCode());
-        $this->assertSame('', $this->driver->getContent());
+    }
+
+    public function testPostResponse()
+    {
+        $this->driver->visit('https://httpbin.org/forms/post');
+        $this->driver->setValue('//input[@name="custname"]', 'john doe');
+        $this->driver->submitForm('//form');
+
+        $this->assertSame(200, $this->driver->getStatusCode());
+        $this->assertContains('"custname": "john doe",', $this->driver->getContent());
     }
 
     /**

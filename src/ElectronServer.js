@@ -93,6 +93,8 @@ Electron.app.on('ready', function() {
         hdrs = {},
         auth = {'user': false, 'pass': null},
         lastStatusCode = null,
+        lastContentPath = null,
+        lastContentSaved = null,
         lastHeaders = null,
         executeResponse = null,
         cookieResponse = null,
@@ -342,6 +344,36 @@ Electron.app.on('ready', function() {
                 Logger.debug('getStatusCode() => %s', lastStatusCode);
 
                 cb(lastStatusCode);
+            },
+
+            getContent: function (cb) {
+                lastContentSaved = null;
+                lastContentPath = Temp.path({'suffix': '.data'});
+                var started = currWindow.webContents.savePage(lastContentPath, 'HTMLComplete', function (error) {
+                    lastContentSaved = error || true;
+                });
+
+                Logger.debug('getContent() => %s (saving to %s)', started, lastContentPath);
+
+                cb(started);
+            },
+
+            getContentResponse: function (cb) {
+                var lastContent = null;
+
+                if (lastContentSaved) {
+                    if (lastContentSaved === true) {
+                        lastContent = {'content': FS.readFileSync(lastContentPath).toString()};
+                    } else {
+                        lastContent = {'error': lastContentSaved};
+                    }
+
+                    FS.unlink(lastContentPath);
+                }
+
+                Logger.debug('getContentResponse() => %s (reading from %s)', JSON.stringify(lastContent), lastContentPath);
+
+                cb(lastContent);
             },
 
             evaluateScript: function (script, cb) {
