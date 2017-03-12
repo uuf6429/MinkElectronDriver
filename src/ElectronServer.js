@@ -93,8 +93,6 @@ Electron.app.on('ready', function() {
         hdrs = {},
         auth = {'user': false, 'pass': null},
         lastStatusCode = null,
-        lastContentPath = null,
-        lastContentSaved = null,
         lastHeaders = null,
         executeResponse = null,
         cookieResponse = null,
@@ -438,6 +436,6 @@ Electron.app.on('ready', function() {
     );
 
     var address = /(.*):(\d+)/.exec(process.argv[2]);
-    if (!address) throw 'Could not parse the supplied address, expected "host:port".';
+    if (!address) throw new Error('Could not parse the supplied address, expected "host:port".');
     server.listen(address[1], parseInt(address[2]));
 });

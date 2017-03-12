@@ -435,45 +435,7 @@ JS
      */
     public function setValue($xpath, $value)
     {
-        $this->evaluateForElementByXPath($xpath, <<<'JS'
-            (function () {
-                var i;
-                switch (true) {
-                    case element.tagName == 'SELECT':
-                        if (value && value.constructor.name == 'Array') {
-                            // select multiple items
-                            for (i = 0; i < element.options.length; i++) {
-                                element.options[i].selected = value.indexOf(element.options[i].value) !== -1;
-                            }
-                        } else {
-                            // select one item
-                            element.value = value;
-                        }
-                        break;
-                    case element.tagName == 'INPUT' && element.type == 'checkbox':
-                        element.checked = value;
-                        break;
-                    case element.tagName == 'INPUT' && element.type == 'radio':
-                        // TODO should we uncheck other related radio buttons? chrome seems to do it automatically
-                        element.checked = value;
-                        break;
-                    case element.tagName == 'INPUT' && element.type == 'file':
-                        throw 'Changing ' + element.type + ' is not supported yet.';
-                    default:
-                        element.value = value;
-                        break;
-                }
-                
-                element.dispatchEvent(new Event('change', {
-                    'view': window,
-                    'bubbles': true,
-                    'cancelable': true
-                }));
-            })();
-JS
-            ,
-            ['value' => $value]
-        );
+        $this->doSetValue($xpath, $value);
     }
 
     /**
@@ -483,7 +445,8 @@ JS
     {
         $this->evaluateForElementByXPath($xpath, <<<'JS'
             (function () {
-                if (!element || element.type != 'checkbox' || element.type != 'radio') throw 'Element is not a valid checkbox or radio button.';
+                if (!element || element.type != 'checkbox' || element.type != 'radio')
+                    throw new Error('Element is not a valid checkbox or radio button.');
                 if (element.checked === false) element.click();
             })();
 JS
@@ -497,7 +460,8 @@ JS
     {
         $this->evaluateForElementByXPath($xpath, <<<'JS'
             (function () {
-                if (!element || element.type != 'checkbox' || element.type != 'radio') throw 'Element is not a valid checkbox or radio button.';
+                if (!element || element.type != 'checkbox' || element.type != 'radio')
+                    throw new Error('Element is not a valid checkbox or radio button.');
                 if (element.checked === true) element.click();
             })();
 JS
@@ -509,7 +473,15 @@ JS
      */
     public function isChecked($xpath)
     {
-        return $this->evaluateForElementByXPath($xpath, 'element.checked');
+        return $this->evaluateForElementByXPath($xpath, <<<'JS'
+            (function () {
+                if (!element || element.type != 'checkbox' || element.type != 'radio')
+                    throw new Error('Element is not a valid checkbox or radio button.');
+                
+                return element.checked;
+            })();
+JS
+        );
     }
 
     /**
@@ -517,7 +489,14 @@ JS
      */
     public function selectOption($xpath, $value, $multiple = false)
     {
-        $this->setValue($xpath, ($multiple && !is_array($value) && !is_null($value)) ? [$value] : $value);
+        $this->doSetValue(
+            $xpath,
+            ($multiple && !is_array($value) && !is_null($value)) ? [$value] : $value,
+            <<<JS
+                if (!element || element.tagName != 'SELECT')
+                    throw new Error('Element is not a valid select box.');
+JS
+        );
     }
 
     /**
@@ -526,7 +505,15 @@ JS
     public function isSelected($xpath)
     {
         // TODO what if parentElement points to, for example, an <optgoup>? this needs to be handled properly
-        return $this->evaluateForElementByXPath($xpath, 'element.parentElement.value == element.value');
+        return $this->evaluateForElementByXPath($xpath, <<<'JS'
+            (function () {
+                if (!element || element.tagName != 'OPTION')
+                    throw new Error('Element is not a valid option element.');
+                
+                return element.parentElement.value == element.value;
+            })();
+JS
+        );
     }
 
     /**
@@ -893,6 +880,56 @@ JS
         );
 
         return $this->evaluateExprWithArgs($expr, $valueArgs, $exprArgs);
+    }
+
+    /**
+     * @param string $xpath
+     * @param mixed $value
+     * @param string $preCode
+     */
+    protected function doSetValue($xpath, $value, $preCode = '')
+    {
+        $this->evaluateForElementByXPath($xpath, <<<'JS'
+            (function () {
+                if (preCode) preCode();
+                var i;
+                switch (true) {
+                    case element.tagName == 'SELECT':
+                        if (value && value.constructor.name == 'Array') {
+                            // select multiple items
+                            for (i = 0; i < element.options.length; i++) {
+                                element.options[i].selected = value.indexOf(element.options[i].value) !== -1;
+                            }
+                        } else {
+                            // select one item
+                            element.value = value;
+                        }
+                        break;
+                    case element.tagName == 'INPUT' && element.type == 'checkbox':
+                        element.checked = value;
+                        break;
+                    case element.tagName == 'INPUT' && element.type == 'radio':
+                        // TODO should we uncheck other related radio buttons? chrome seems to do it automatically
+                        element.checked = value;
+                        break;
+                    case element.tagName == 'INPUT' && element.type == 'file':
+                        throw new Error('Changing ' + element.type + ' is not supported yet.');
+                    default:
+                        element.value = value;
+                        break;
+                }
+                
+                element.dispatchEvent(new Event('change', {
+                    'view': window,
+                    'bubbles': true,
+                    'cancelable': true
+                }));
+            })();
+JS
+            ,
+            ['value' => $value],
+            ['preCode' => $preCode ? sprintf('(function(){ %s })', $preCode) : 'null']
+        );
     }
 
     /**
