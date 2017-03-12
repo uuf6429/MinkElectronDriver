@@ -356,7 +356,7 @@ class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
         return $count
             ? array_map(
                 function ($index) use ($xpath) {
-                    return sprintf('(%s)[%d]', $xpath, $index + 1);
+                    return sprintf('(%s)[%d]', $xpath, $index);
                 },
                 range(1, $count)
             )
