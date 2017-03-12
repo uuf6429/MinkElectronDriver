@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#composer-lock-the-lock-file",
         "This file is @generated automatically"
     ],
-    "content-hash": "410f08cba7fa85d939d1c968f28c92fc",
+    "content-hash": "f2907e70c2b981df4c2aae3d904fb3bd",
     "packages": [
         {
             "name": "behat/mink",
@@ -63,6 +63,63 @@
                 "web"
             ],
             "time": "2016-03-05T08:26:18+00:00"
+        },
+        {
+            "name": "eloquent/composer-npm-bridge",
+            "version": "3.0.1",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/eloquent/composer-npm-bridge.git",
+                "reference": "8bcaa15d94e7d44e7f772112fd7096fc1f111e0c"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/eloquent/composer-npm-bridge/zipball/8bcaa15d94e7d44e7f772112fd7096fc1f111e0c",
+                "reference": "8bcaa15d94e7d44e7f772112fd7096fc1f111e0c",
+                "shasum": ""
+            },
+            "require": {
+                "composer-plugin-api": "^1",
+                "php": ">=5.3"
+            },
+            "require-dev": {
+                "composer/composer": "dev-master",
+                "eloquent/phony": "^0.8",
+                "icecave/archer": "dev-develop",
+                "phpunit/phpunit": "^4"
+            },
+            "type": "composer-plugin",
+            "extra": {
+                "class": "Eloquent\\Composer\\NpmBridge\\NpmBridgePlugin"
+            },
+            "autoload": {
+                "psr-4": {
+                    "Eloquent\\Composer\\NpmBridge\\": "src"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Erin Millard",
+                    "email": "ezzatron@gmail.com",
+                    "homepage": "http://ezzatron.com/"
+                }
+            ],
+            "description": "NPM integration for Composer packages.",
+            "homepage": "https://github.com/eloquent/composer-npm-bridge",
+            "keywords": [
+                "Bridge",
+                "composer",
+                "composer-plugin",
+                "integration",
+                "npm",
+                "package",
+                "plugin"
+            ],
+            "time": "2016-02-22T02:25:21+00:00"
         },
         {
             "name": "erasys/dnode-php-sync-client",

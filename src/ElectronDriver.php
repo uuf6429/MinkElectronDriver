@@ -314,7 +314,17 @@ class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
             throw new DriverException('Could not take a screen shot: ' . $result['error']);
         }
 
-        return base64_decode($result['base64data']);
+        if (!$result['base64data']) {
+            throw new DriverException('Screen shot data is empty.');
+        }
+
+        $result['data'] = base64_decode($result['base64data']);
+
+        if (!$result['data']) {
+            throw new DriverException('Screen shot could not be decoded, sources data: ' . $result['base64data']);
+        }
+
+        return $result['data'];
     }
 
     /**
@@ -348,7 +358,7 @@ class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
                 function ($index) use ($xpath) {
                     return sprintf('(%s)[%d]', $xpath, $index + 1);
                 },
-                range(0, $count)
+                range(1, $count)
             )
             : [];
     }
