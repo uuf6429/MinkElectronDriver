@@ -168,6 +168,16 @@ Electron.app.on('ready', function() {
                         )
                     ;
                 })
+                .on('did-fail-load', function (event, errorCode, errorDescription, validatedURL, isMainFrame) {
+                    Logger.warn('Page failed to load (error %s): %s.', errorCode, errorDescription);
+                    pageVisited = true;
+                })
+                .on('crashed', function (event, killed) {
+                    Logger.error('Renderer process %s.', killed ? 'was killed' : 'has crashed');
+                })
+                .on('plugin-crashed', function (event, name, version) {
+                    Logger.error('Plugin %s version %s crashed.', name, version);
+                })
             ;
         }
     );
@@ -368,7 +378,9 @@ Electron.app.on('ready', function() {
                         lastContent = {'error': lastContentSaved};
                     }
 
-                    FS.unlink(lastContentPath);
+                    FS.unlink(lastContentPath, function() {
+                        Logger.debug('Deleted temporary content file.');
+                    });
                 }
 
                 Logger.debug('getContentResponse() => %s (reading from %s)', JSON.stringify(lastContent), lastContentPath);
