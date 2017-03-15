@@ -63,8 +63,7 @@ const Electron = require('electron'),
         error: function(){
             this.log('error', Util.format.apply(null, arguments));
         }
-    }
-;
+    };
 
 var showWindow = process.argv[3] === 'show';
 Logger.LogLevel = Logger.LevelMap[process.argv[4] || ''] || 0;
@@ -99,8 +98,7 @@ Electron.app.on('ready', function() {
         executeResponse = null,
         cookieResponse = null,
         screenshotResponse = null,
-        windowWillUnload = false
-    ;
+        windowWillUnload = false;
 
     global.setExecutionError = function (error) {
         Logger.error('Script evaluation failed internally: %s', (error ? (error.stack || error) : '').toString());
@@ -194,7 +192,7 @@ Electron.app.on('ready', function() {
 
                 BrowserWindow.getAllWindows().forEach(function (window) {
                     window.webContents.session.clearStorageData();
-                    window.webContents.session.clearAuthCache({ type: 'password' });
+                    window.webContents.session.clearAuthCache({type: 'password'});
                 });
 
                 cb();
@@ -378,7 +376,7 @@ Electron.app.on('ready', function() {
                         lastContent = {'error': lastContentSaved};
                     }
 
-                    FS.unlink(lastContentPath, function() {
+                    FS.unlink(lastContentPath, function () {
                         Logger.debug('Deleted temporary content file.');
                     });
                 }
@@ -476,6 +474,9 @@ Electron.app.on('ready', function() {
 
                 cb();
             }
+        },
+        {
+            'weak': false
         }
     );
 

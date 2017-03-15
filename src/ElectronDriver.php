@@ -298,7 +298,6 @@ class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
      */
     public function getContent()
     {
-        //return $this->getOuterHtml('//html');
         $started = $this->sendAndWaitWithResult('getContent');
 
         if (!$started) {
@@ -717,7 +716,7 @@ JS
             $script = substr($script, 7);
         }
 
-        $this->sendAndWaitWithoutResult('evaluateScript', [rtrim($script, ';') . ';']);
+        $this->sendAndWaitWithoutResult('evaluateScript', [sprintf('(%s);', rtrim($script, ';'))]);
 
         $result = $this->waitForAsyncResult('getEvaluateScriptResponse');
 
