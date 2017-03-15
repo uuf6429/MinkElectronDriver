@@ -460,7 +460,49 @@ JS
      */
     public function setValue($xpath, $value)
     {
-        $this->doSetValue($xpath, $value);
+        // TODO See also: https://github.com/segmentio/nightmare/blob/5ee597175861023cd23ccc5421f4fe3e00e54159/lib/runner.js#L369
+        $this->evaluateForElementByXPath($xpath, <<<'JS'
+            (function () {
+                var i;
+                switch (true) {
+                    case element.tagName == 'SELECT':
+                        if (value && value.constructor.name == 'Array') {
+                            // select multiple items
+                            for (i = 0; i < element.options.length; i++) {
+                                element.options[i].selected = value.indexOf(element.options[i].value) !== -1;
+                            }
+                        } else {
+                            // select one item
+                            element.value = value;
+                        }
+                        break;
+                        
+                    case element.tagName == 'INPUT' && element.type == 'checkbox':
+                        if (element.checked != value) element.click();
+                        break;
+                        
+                    case element.tagName == 'INPUT' && element.type == 'radio':
+                        element.click();
+                        break;
+                        
+                    case element.tagName == 'INPUT' && element.type == 'file':
+                        throw new Error('Changing ' + element.type + ' is not supported yet.');
+                        
+                    default:
+                        element.value = value;
+                        break;
+                }
+                
+                element.dispatchEvent(new Event('change', {
+                    'view': window,
+                    'bubbles': true,
+                    'cancelable': true
+                }));
+            })();
+JS
+            ,
+            ['value' => $value]
+        );
     }
 
     /**
@@ -472,6 +514,7 @@ JS
             (function () {
                 if (!element || !((element.type == 'checkbox') || (element.type == 'radio')))
                     throw new Error('Element is not a valid checkbox or radio button.');
+                
                 if (element.checked === false) element.click();
             })();
 JS
@@ -487,6 +530,7 @@ JS
             (function () {
                 if (!element || !((element.type == 'checkbox') || (element.type == 'radio')))
                     throw new Error('Element is not a valid checkbox or radio button.');
+                
                 if (element.checked === true) element.click();
             })();
 JS
@@ -514,13 +558,23 @@ JS
      */
     public function selectOption($xpath, $value, $multiple = false)
     {
-        $this->doSetValue(
-            $xpath,
-            ($multiple && !is_array($value) && !is_null($value)) ? [$value] : $value,
-            <<<JS
-                if (!element || element.tagName != 'SELECT')
-                    throw new Error('Element is not a valid select box.');
+        $this->evaluateForElementByXPath($xpath, <<<'JS'
+            (function () {
+                if (element.tagName == 'INPUT' && element.type == 'radio') {
+                    // TODO $this->selectRadioValue($element, $value);
+                    return;
+                }
+        
+                if (element.tagName == 'SELECT') {
+                    // TODO $this->selectOptionOnElement($element, $value, $multiple);
+                    return;
+                }
+        
+                throw new Error('Element is not a valid select or radio input');
+            })();
 JS
+            ,
+            ['value' => $value]
         );
     }
 
@@ -716,7 +770,7 @@ JS
             $script = substr($script, 7);
         }
 
-        $this->sendAndWaitWithoutResult('evaluateScript', [sprintf('(%s);', rtrim($script, ';'))]);
+        $this->sendAndWaitWithoutResult('evaluateScript', [sprintf('(%s);', rtrim($script, "\r\n\t ;"))]);
 
         $result = $this->waitForAsyncResult('getEvaluateScriptResponse');
 
@@ -905,57 +959,6 @@ JS
         );
 
         return $this->evaluateExprWithArgs($expr, $valueArgs, $exprArgs);
-    }
-
-    /**
-     * @param string $xpath
-     * @param mixed $value
-     * @param string $preCode
-     */
-    protected function doSetValue($xpath, $value, $preCode = '')
-    {
-        // TODO See also: https://github.com/segmentio/nightmare/blob/5ee597175861023cd23ccc5421f4fe3e00e54159/lib/runner.js#L369
-        $this->evaluateForElementByXPath($xpath, <<<'JS'
-            (function () {
-                if (preCode) preCode();
-                var i;
-                switch (true) {
-                    case element.tagName == 'SELECT':
-                        if (value && value.constructor.name == 'Array') {
-                            // select multiple items
-                            for (i = 0; i < element.options.length; i++) {
-                                element.options[i].selected = value.indexOf(element.options[i].value) !== -1;
-                            }
-                        } else {
-                            // select one item
-                            element.value = value;
-                        }
-                        break;
-                    case element.tagName == 'INPUT' && element.type == 'checkbox':
-                        element.checked = value;
-                        break;
-                    case element.tagName == 'INPUT' && element.type == 'radio':
-                        // TODO should we uncheck other related radio buttons? chrome seems to do it automatically
-                        element.checked = value;
-                        break;
-                    case element.tagName == 'INPUT' && element.type == 'file':
-                        throw new Error('Changing ' + element.type + ' is not supported yet.');
-                    default:
-                        element.value = value;
-                        break;
-                }
-                
-                element.dispatchEvent(new Event('change', {
-                    'view': window,
-                    'bubbles': true,
-                    'cancelable': true
-                }));
-            })();
-JS
-            ,
-            ['value' => $value],
-            ['preCode' => $preCode ? sprintf('(function(){ %s })', $preCode) : 'null']
-        );
     }
 
     /**
