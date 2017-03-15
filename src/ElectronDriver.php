@@ -389,7 +389,7 @@ class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
     public function getText($xpath)
     {
         $text = $this->evaluateForElementByXPath($xpath, 'element.innerText');
-        return str_replace(["\r\n", "\r", "\n"], ' ', $text);;
+        return str_replace(["\r\n", "\r", "\n"], ' ', $text);
     }
 
     /**
@@ -470,7 +470,7 @@ JS
     {
         $this->evaluateForElementByXPath($xpath, <<<'JS'
             (function () {
-                if (!element || element.type != 'checkbox' || element.type != 'radio')
+                if (!element || !((element.type == 'checkbox') || (element.type == 'radio')))
                     throw new Error('Element is not a valid checkbox or radio button.');
                 if (element.checked === false) element.click();
             })();
@@ -485,7 +485,7 @@ JS
     {
         $this->evaluateForElementByXPath($xpath, <<<'JS'
             (function () {
-                if (!element || element.type != 'checkbox' || element.type != 'radio')
+                if (!element || !((element.type == 'checkbox') || (element.type == 'radio')))
                     throw new Error('Element is not a valid checkbox or radio button.');
                 if (element.checked === true) element.click();
             })();
@@ -500,7 +500,7 @@ JS
     {
         return $this->evaluateForElementByXPath($xpath, <<<'JS'
             (function () {
-                if (!element || element.type != 'checkbox' || element.type != 'radio')
+                if (!element || !((element.type == 'checkbox') || (element.type == 'radio')))
                     throw new Error('Element is not a valid checkbox or radio button.');
                 
                 return element.checked;
