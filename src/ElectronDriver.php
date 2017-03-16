@@ -461,19 +461,21 @@ JS
     public function setValue($xpath, $value)
     {
         // TODO See also: https://github.com/segmentio/nightmare/blob/5ee597175861023cd23ccc5421f4fe3e00e54159/lib/runner.js#L369
-        $this->evaluateForElementByXPath($xpath, <<<'JS'
+        $this->evaluateForElementByXPath($xpath, <<<JS
             (function () {
                 var i;
                 switch (true) {
                     case element.tagName == 'SELECT':
                         if (value && value.constructor.name == 'Array') {
-                            // select multiple items
-                            for (i = 0; i < element.options.length; i++) {
-                                element.options[i].selected = value.indexOf(element.options[i].value) !== -1;
+                            {$this->scriptDeselectAllOptions()}
+                            var oldValue = value;
+                            for (var n = 0; n < oldValue.length; n++) {
+                                value = oldValue[n];
+                                multiple = true;
+                                {$this->scriptSelectOptionOnElement()}
                             }
                         } else {
-                            // select one item
-                            element.value = value;
+                            {$this->scriptSelectOptionOnElement()}
                         }
                         break;
                         
@@ -482,8 +484,8 @@ JS
                         break;
                         
                     case element.tagName == 'INPUT' && element.type == 'radio':
-                        element.click();
-                        break;
+                        {$this->scriptSelectRadioValue()}
+                        return;
                         
                     case element.tagName == 'INPUT' && element.type == 'file':
                         throw new Error('Changing ' + element.type + ' is not supported yet.');
@@ -558,15 +560,15 @@ JS
      */
     public function selectOption($xpath, $value, $multiple = false)
     {
-        $this->evaluateForElementByXPath($xpath, <<<'JS'
+        $this->evaluateForElementByXPath($xpath, <<<JS
             (function () {
                 if (element.tagName == 'INPUT' && element.type == 'radio') {
-                    // TODO $this->selectRadioValue($element, $value);
+                    {$this->scriptSelectRadioValue()}
                     return;
                 }
         
                 if (element.tagName == 'SELECT') {
-                    // TODO $this->selectOptionOnElement($element, $value, $multiple);
+                    {$this->scriptSelectOptionOnElement()}
                     return;
                 }
         
@@ -574,8 +576,88 @@ JS
             })();
 JS
             ,
-            ['value' => $value]
+            ['value' => $value, 'multiple' => $multiple]
         );
+    }
+
+    /**
+     * @return string
+     */
+    protected function scriptSelectRadioValue()
+    {
+        return <<<'JS'
+            var name = element.name,
+                form = element.form,
+                input = null;
+        
+            if (element.value === value) {
+                element.click();
+                return;
+            }
+            
+            if (!name) {
+                throw new Error('The radio button does not have the value "' + value + '".');
+            }
+            
+            if (form) {
+                var group = form[name];
+                for (var i = 0; i < group.length; i++) {
+                    if (group[i].value === value) {
+                        input = group[i];
+                    }
+                }
+            } else {
+                throw new Error('The radio group "' + name + '" is not in a form.');
+            }
+
+            if (!input) {
+                throw new Error('The radio group "' + name + '" does not have an option "' + value + '".');
+            }
+
+            input.click();
+JS;
+    }
+
+    /**
+     * @return string
+     */
+    protected function scriptSelectOptionOnElement()
+    {
+        return <<<JS
+            var option = null;
+
+            for (var i = 0; i < element.options.length; i++) {
+                if (element.options[i].value === value) {
+                    option = element.options[i];
+                    break;
+                }
+            }
+
+            if (!option) {
+                throw new Error('Select box "' + (element.name || element.id) + '" does not have an option "' + value + '".');
+            }
+
+            if ((typeof(multiple) !== 'undefined' && multiple) || !element.multiple){ // TODO is this correct? "multiple or not element.multiple"?
+                if (!option.selected) {
+                    option.selected = true; // FIXME Should have been "option.click();" but it doesn't work
+                }
+            } else {
+                {$this->scriptDeselectAllOptions()}
+                option.selected = true; // FIXME Should have been "option.click();" but it doesn't work
+            }
+JS;
+    }
+
+    /**
+     * @return string
+     */
+    protected function scriptDeselectAllOptions()
+    {
+        return <<<'JS'
+            for (var i = 0; i < element.options.length; i++) {
+                element.options[i].selected = false;
+            }
+JS;
     }
 
     /**
