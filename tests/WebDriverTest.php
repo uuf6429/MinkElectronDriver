@@ -177,4 +177,19 @@ class WebDriverTest extends TestCase
             ],
         ];
     }
+
+    public function testWindowNameTracking()
+    {
+        $this->driver->visit('https://httpbin.org/status/200');
+
+        $this->driver->executeScript('window.open("https://httpbin.org/status/200", "popup1")');
+        $this->assertContains('popup1', $this->driver->getWindowNames());
+
+        $this->driver->switchToWindow('popup1');
+        $this->assertSame('popup1', $this->driver->getWindowName());
+
+        $this->driver->executeScript('window.name = "popup1rev"');
+        $this->assertContains('popup1rev', $this->driver->getWindowNames());
+        $this->assertSame('popup1rev', $this->driver->getWindowName());
+    }
 }

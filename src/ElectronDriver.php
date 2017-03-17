@@ -352,7 +352,7 @@ class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
      */
     public function getWindowName()
     {
-        return $this->sendAndWaitWithResult('getWindowName');
+        return $this->evaluateScript('window.name');
     }
 
     /**
@@ -637,13 +637,13 @@ JS;
                 throw new Error('Select box "' + (element.name || element.id) + '" does not have an option "' + value + '".');
             }
 
-            if ((typeof(multiple) !== 'undefined' && multiple) || !element.multiple){ // TODO is this correct? "multiple or not element.multiple"?
+            if ((typeof(multiple) !== 'undefined' && multiple) || !element.multiple){
                 if (!option.selected) {
-                    option.selected = true; // FIXME Should have been "option.click();" but it doesn't work
+                    option.selected = true; // FIXME Should have been "option.click();" but it doesn't work... are we losing events now?
                 }
             } else {
                 {$this->scriptDeselectAllOptions()}
-                option.selected = true; // FIXME Should have been "option.click();" but it doesn't work
+                option.selected = true; // FIXME Should have been "option.click();" but it doesn't work... are we losing events now?
             }
 JS;
     }

@@ -98,7 +98,9 @@ Electron.app.on('ready', function() {
         executeResponse = null,
         cookieResponse = null,
         screenshotResponse = null,
-        windowWillUnload = false;
+        windowWillUnload = false,
+        newWindowName = null,
+        windowIdNameMap = {};
 
     global.setExecutionError = function (error) {
         Logger.error('Script evaluation failed internally: %s', (error ? (error.stack || error) : '').toString());
@@ -114,6 +116,38 @@ Electron.app.on('ready', function() {
         }
 
         windowWillUnload = value;
+    };
+
+    global.setWindowIdName = function (id, name, url) {
+        id = id === null ? "" : id.toString();
+
+        if (name === null) {
+            Logger.info('Unlinked window named "%s" from id "%s" for %s.', name, id, url);
+            if (windowIdNameMap[id]) delete windowIdNameMap[id];
+        } else {
+            Logger.info('Linked window named "%s" with id "%s" for %s.', name, id, url);
+            windowIdNameMap[id] = name;
+        }
+    };
+
+    var findWindowByName = function (name) {
+        var result = [];
+
+        for (var id in windowIdNameMap) {
+            if (windowIdNameMap[id] === name) {
+                var wnd = BrowserWindow.fromId(parseInt(id));
+                if (wnd) result.push(wnd);
+            }
+        }
+
+        switch (result.length) {
+            case 0:
+                throw new Error('Window named "' + name + '" not found (possibly name cache not in sync).');
+            case 1:
+                return result[0];
+            default:
+                throw new Error('There are ' + result.length + ' windows named "' + name + '".');
+        }
     };
 
     Electron.app.on(
@@ -134,26 +168,46 @@ Electron.app.on('ready', function() {
                     lastStatusCode = httpResponseCode;
                     lastHeaders = headers;
                 })
+                .on('new-window', function (event, url, frameName) {
+                    Logger.info('Creating window "%s" for url "%s".', frameName, url);
+                    windowWillUnload = true;
+                    pageVisited = null;
+                    newWindowName = frameName;
+                })
                 .on('did-finish-load', function () {
                     Logger.debug('Attaching JS to page...');
 
                     window.webContents
                         .executeJavaScript(
                             '(function () {\
+                                var callGlobalFn = function (name, args) {\
+                                    var remote = require("electron").remote;\
+                                    var remoteFn = remote.getGlobal(name);\
+                                    if (!remoteFn) throw new Error("Requested global js function not found: " + name);\
+                                    remoteFn.apply(remote, args);\
+                                };\
+                                \
                                 var oldOnError = window.onerror;\
                                 window.onerror = function (error) {\
-                                    var remote = require("electron").remote;\
-                                    var setErrorFn = remote.getGlobal("setExecutionError");\
-                                    if (setErrorFn) setErrorFn(error);\
+                                    callGlobalFn("setExecutionError", [error]);\
                                     if (oldOnError) oldOnError();\
                                 };\
+                                \
                                 var oldOnUnload = window.onbeforeunload;\
                                 window.onbeforeunload = function (error) {\
-                                    var remote = require("electron").remote;\
-                                    var setUnloadFn = remote.getGlobal("setWindowUnloading");\
-                                    if (setUnloadFn) setUnloadFn(true);\
+                                    callGlobalFn("setWindowUnloading", [true]);\
                                     if (oldOnUnload) oldOnUnload();\
+                                    callGlobalFn("setWindowIdName", [' + window.id + ', null, location.href]);\
                                 };\
+                                \
+                                var oldWndName = window.name;\
+                                window.__defineSetter__("name", function (name) {\
+                                    oldWndName = name;\
+                                    callGlobalFn("setWindowIdName", [' + window.id + ', name, location.href]);\
+                                });\
+                                window.__defineGetter__("name", function () { return oldWndName; });\
+                                \
+                                window.name = ' + JSON.stringify(newWindowName) + ';\
                             })();', true)
                         .then(
                             function () {
@@ -270,7 +324,7 @@ Electron.app.on('ready', function() {
             switchToWindow: function (name, cb) {
                 Logger.debug('switchToWindow(%s)', name);
 
-                currWindow = name === null ? mainWindow : BrowserWindow.fromId(parseInt(name));
+                currWindow = name === null ? mainWindow : findWindowByName(name);
 
                 cb();
             },
@@ -442,27 +496,17 @@ Electron.app.on('ready', function() {
             },
 
             getWindowNames: function (cb) {
-                var windowNames = BrowserWindow
-                    .getAllWindows()
-                    .map(function (win) {
-                        return win.id.toString();
-                    });
+                var windowNames = Object.values(windowIdNameMap);
 
                 Logger.debug('getWindowNames() => %j', windowNames);
 
                 cb(windowNames);
             },
 
-            getWindowName: function (cb) {
-                Logger.debug('getWindowName() => %s', currWindow.id.toString());
-
-                cb(currWindow.id.toString());
-            },
-
             resizeWindow: function (width, height, name, cb) {
                 Logger.debug('resizeWindow(%s, %s, %s)', width, height, name);
 
-                (name === null ? currWindow : BrowserWindow.fromId(parseInt(name))).setSize(width, height, false);
+                (name === null ? currWindow : findWindowByName(name)).setSize(width, height, false);
 
                 cb();
             },
@@ -470,7 +514,7 @@ Electron.app.on('ready', function() {
             maximizeWindow: function (name, cb) {
                 Logger.debug('maximizeWindow(%s)', name);
 
-                (name === null ? currWindow : BrowserWindow.fromId(parseInt(name))).maximize();
+                (name === null ? currWindow : findWindowByName(name)).maximize();
 
                 cb();
             }
