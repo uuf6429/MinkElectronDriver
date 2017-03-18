@@ -181,10 +181,12 @@ Electron.app.on('ready', function() {
                         .executeJavaScript(
                             '(function () {\
                                 var callGlobalFn = function (name, args) {\
-                                    var remote = require("electron").remote;\
-                                    var remoteFn = remote.getGlobal(name);\
-                                    if (!remoteFn) throw new Error("Requested global js function not found: " + name);\
-                                    remoteFn.apply(remote, args);\
+                                    var remote = (require("electron") || {}).remote;\
+                                    if (remote) {\
+                                        var remoteFn = remote.getGlobal(name);\
+                                        if (!remoteFn) throw new Error("Requested global js function not found: " + name);\
+                                        remoteFn.apply(remote, args);\
+                                    }\
                                 };\
                                 \
                                 var oldOnError = window.onerror;\

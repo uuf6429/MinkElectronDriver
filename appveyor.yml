@@ -43,11 +43,11 @@ install:
     # Install composer
     - IF %PHP%==1 echo @php %%~dp0composer.phar %%* > composer.bat
     - IF NOT EXIST composer.phar (appveyor DownloadFile https://getcomposer.org/download/1.3.0/composer.phar)
-    - composer self-update
+    - composer self-update --no-progress --ansi
     # Install project composer dependencies
     - cd c:\projects\MinkElectronDriver
     - composer install --no-progress --ansi
-    - composer show
+    - composer show --ansi
 
 test_script:
   - cd c:\projects\MinkElectronDriver

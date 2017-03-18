@@ -989,18 +989,20 @@ JS
      * @param string $method The method to retrieve data from.
      * @param array $arguments Parameters to pass to web method.
      * @param float $delay Delay between calls in seconds.
-     * @param float $timeout Time out in seconds.
+     * @param int|float $timeout Time out in seconds (0 for no timeout, default is 60).
      * @return mixed
+     * @throws DriverException
      */
-    protected function waitForAsyncResult($method, $arguments = [], $delay = 0.05, $timeout = null)
+    protected function waitForAsyncResult($method, $arguments = [], $delay = 0.05, $timeout = 60)
     {
+        $start = microtime(true);
+
         while (($result = $this->sendAndWaitWithResult($method, $arguments)) === null) {
             usleep($delay * 1000000);
 
-            // TODO implement timeout
-            /*if($timeout && ){
-                throw new DriverException(sprintf('Method "%s" reached timeout limit of %fs.', $method, $timeout));
-            }*/
+            if ($timeout && microtime(true) - $start > $timeout) {
+                throw new DriverException(sprintf('Method "%s" reached timeout limit of %s seconds.', $method, $timeout));
+            }
         }
 
         return $result;
