@@ -1,6 +1,15 @@
 {
   "name": "ElectronServer",
+  "version": "1.0.0",
   "description": "ElectronDriver Server",
+  "keywords": [
+    "electron",
+    "mink",
+    "behat"
+  ],
+  "homepage": "https://github.com/uuf6429/MinkElectronDriver",
+  "bugs": "https://github.com/uuf6429/MinkElectronDriver/issues",
+  "author": "Christian Sciberras <christian@sciberras.me> (http://christian.sciberras.me/)",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -14,9 +23,10 @@
     "temp": "~0.8",
     "weak": "~1.0.1"
   },
-  "main": "electron-server",
-  "bin": "./src/ElectronServerBin.js",
   "scripts": {
     "install": "electron-rebuild"
+  },
+  "engines": {
+    "node": ">=4.0.0"
   }
 }

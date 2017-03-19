@@ -16,7 +16,7 @@ class ElectronConfig extends AbstractConfig
      */
     public function createDriver()
     {
-        return new ElectronDriver(new FileLogger(__DIR__ . '/../tmp/output.log'), true);
+        return new ElectronDriver(new FileLogger(__DIR__ . '/../tmp/output.log'), false);
     }
 
     /**
