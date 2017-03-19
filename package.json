@@ -7,11 +7,12 @@
     "url": "https://github.com/uuf6429/MinkElectronDriver.git"
   },
   "dependencies": {
-    "electron": "~1.6.2",
-    "weak": "~1.0.1",
-    "electron-rebuild": "^1.5.7",
     "dnode": "~1.2.2",
-    "temp": "~0.8"
+    "electron": "~1.6.2",
+    "electron-rebuild": "^1.5.7",
+    "syn": "^0.4.2",
+    "temp": "~0.8",
+    "weak": "~1.0.1"
   },
   "main": "electron-server",
   "bin": "./src/ElectronServerBin.js",

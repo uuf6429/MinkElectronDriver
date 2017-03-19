@@ -495,11 +495,7 @@ JS
                         break;
                 }
 
-                element.dispatchEvent(new Event('change', {
-                    'view': window,
-                    'bubbles': true,
-                    'cancelable': true
-                }));
+                {$this->scriptSynTrigger('change')};
             })();
 JS
             ,
@@ -646,11 +642,7 @@ JS;
                 option.selected = true; // FIXME Should have been "option.click();" but it doesn't work... are we losing events now?
             }
             
-            element.dispatchEvent(new Event('change', {
-                'view': window,
-                'bubbles': true,
-                'cancelable': true
-            }));
+            {$this->scriptSynTrigger('change')};
 JS;
     }
 
@@ -770,7 +762,7 @@ JS
      */
     public function focus($xpath)
     {
-        $this->evaluateForElementByXPath($xpath, 'element.focus()');
+        $this->synTrigger($xpath, 'focus');
     }
 
     /**
@@ -778,52 +770,31 @@ JS
      */
     public function blur($xpath)
     {
-        $this->evaluateForElementByXPath($xpath, 'element.blur()');
+        $this->synTrigger($xpath, 'blur');
     }
 
     /**
-     * Presses specific keyboard key.
-     *
-     * @param string $xpath
-     * @param string|int $char could be either char ('b') or char-code (98)
-     * @param string $modifier keyboard modifier (could be 'ctrl', 'alt', 'shift' or 'meta')
-     *
-     * @throws UnsupportedDriverActionException When operation not supported by the driver
-     * @throws DriverException                  When the operation cannot be done
+     * @inheritdoc
      */
     public function keyPress($xpath, $char, $modifier = null)
     {
-        $this->callBaseMethod(__FUNCTION__, func_get_args()); // TODO: Implement keyPress() method.
+        $this->synTrigger($xpath, 'keypress', $this->synKeyComToOptions($char, $modifier));
     }
 
     /**
-     * Pressed down specific keyboard key.
-     *
-     * @param string $xpath
-     * @param string|int $char could be either char ('b') or char-code (98)
-     * @param string $modifier keyboard modifier (could be 'ctrl', 'alt', 'shift' or 'meta')
-     *
-     * @throws UnsupportedDriverActionException When operation not supported by the driver
-     * @throws DriverException                  When the operation cannot be done
+     * @inheritdoc
      */
     public function keyDown($xpath, $char, $modifier = null)
     {
-        $this->callBaseMethod(__FUNCTION__, func_get_args()); // TODO: Implement keyDown() method.
+        $this->synTrigger($xpath, 'keydown', $this->synKeyComToOptions($char, $modifier));
     }
 
     /**
-     * Pressed up specific keyboard key.
-     *
-     * @param string $xpath
-     * @param string|int $char could be either char ('b') or char-code (98)
-     * @param string $modifier keyboard modifier (could be 'ctrl', 'alt', 'shift' or 'meta')
-     *
-     * @throws UnsupportedDriverActionException When operation not supported by the driver
-     * @throws DriverException                  When the operation cannot be done
+     * @inheritdoc
      */
     public function keyUp($xpath, $char, $modifier = null)
     {
-        $this->callBaseMethod(__FUNCTION__, func_get_args()); // TODO: Implement keyUp() method.
+        $this->synTrigger($xpath, 'keyup', $this->synKeyComToOptions($char, $modifier));
     }
 
     /**
@@ -1059,5 +1030,53 @@ JS
         static $class;
         if (!$class) $class = new \ReflectionClass(CoreDriver::class);
         return $class->getMethod($mtd)->invokeArgs($this, $args);
+    }
+
+    /**
+     * @param string $event
+     * @param array|object $options
+     * @param string $elementVarName
+     * @return string
+     */
+    protected function scriptSynTrigger($event, $options = [], $elementVarName = 'element')
+    {
+        return sprintf(
+            'ElectronSyn.trigger(%s, %s, %s)',
+            $elementVarName,
+            json_encode((string)$event),
+            json_encode((object)$options)
+        );
+    }
+
+    /**
+     * @param string $xpath
+     * @param string $event
+     * @param array|object $options
+     * @return mixed
+     */
+    protected function synTrigger($xpath, $event, $options = [])
+    {
+        return $this->evaluateForElementByXPath($xpath, $this->scriptSynTrigger($event, $options));
+    }
+
+    /**
+     * @param string $char
+     * @param string|null $modifier
+     * @return array
+     */
+    protected function synKeyComToOptions($char, $modifier)
+    {
+        $ord = is_numeric($char) ? $char : ord($char);
+
+        $options = array(
+            'keyCode' => $ord,
+            'charCode' => $ord
+        );
+
+        if ($modifier) {
+            $options[$modifier . 'Key'] = 1;
+        }
+
+        return $options;
     }
 }
