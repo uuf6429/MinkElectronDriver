@@ -663,13 +663,21 @@ JS;
      */
     public function isSelected($xpath)
     {
-        // TODO what if parentElement points to, for example, an <optgoup>? this needs to be handled properly
         return $this->evaluateForElementByXPath($xpath, <<<'JS'
             (function () {
                 if (!element || element.tagName != 'OPTION')
                     throw new Error('Element is not a valid option element.');
                 
-                return element.parentElement.value == element.value;
+                var select;
+                if (element.parentElement.tagName == 'SELECT') { // select -> option
+                    select = element.parentElement;
+                } else if(element.parentElement.parentElement.tagName == 'SELECT') { // select -> optgroup -> option
+                    select = element.parentElement.parentElement;
+                } else {
+                    throw new Error('Could not find a containing select element.');
+                }
+                
+                return select.value == element.value;
             })();
 JS
         );
@@ -730,18 +738,11 @@ JS
     }
 
     /**
-     * Checks whether element visible located by it's XPath query.
-     *
-     * @param string $xpath
-     *
-     * @return Boolean
-     *
-     * @throws UnsupportedDriverActionException When operation not supported by the driver
-     * @throws DriverException                  When the operation cannot be done
+     * @inheritdoc
      */
     public function isVisible($xpath)
     {
-        return $this->callBaseMethod(__FUNCTION__, func_get_args()); // TODO: Implement isVisible() method.
+        return $this->evaluateForElementByXPath($xpath, 'Electron.syn.isVisible(element)');
     }
 
     /**
@@ -889,7 +890,6 @@ JS
      */
     protected function buildServerCmd()
     {
-        // TODO Probably we can just do "ElectronServer <socket>" thanks to npm "bin" option... not sure though
         $electronPath = __DIR__
             . DIRECTORY_SEPARATOR . '..'
             . DIRECTORY_SEPARATOR . 'node_modules'
@@ -1041,7 +1041,7 @@ JS
     protected function scriptSynTrigger($event, $options = [], $elementVarName = 'element')
     {
         return sprintf(
-            'ElectronSyn.trigger(%s, %s, %s)',
+            'Electron.syn.trigger(%s, %s, %s)',
             $elementVarName,
             json_encode((string)$event),
             json_encode((object)$options)
