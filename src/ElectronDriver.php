@@ -477,7 +477,7 @@ JS
                         } else {
                             {$this->scriptSelectOptionOnElement()}
                         }
-                        break;
+                        return;
                         
                     case element.tagName == 'INPUT' && element.type == 'checkbox':
                         if (element.checked != value) element.click();
@@ -494,7 +494,7 @@ JS
                         element.value = value;
                         break;
                 }
-                
+
                 element.dispatchEvent(new Event('change', {
                     'view': window,
                     'bubbles': true,
@@ -645,6 +645,12 @@ JS;
                 {$this->scriptDeselectAllOptions()}
                 option.selected = true; // FIXME Should have been "option.click();" but it doesn't work... are we losing events now?
             }
+            
+            element.dispatchEvent(new Event('change', {
+                'view': window,
+                'bubbles': true,
+                'cancelable': true
+            }));
 JS;
     }
 
