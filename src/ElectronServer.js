@@ -25,6 +25,7 @@ if (process.argv.length < 3
 
 const Electron = require('electron'),
     BrowserWindow = Electron.BrowserWindow,
+    Path = require('path'),
     DNode = require('dnode'),
     Temp = require('temp'),
     FS = require('fs'),
@@ -83,10 +84,17 @@ process.traceDeprecation = true;
 });
 
 Electron.app.on('ready', function() {
-    var mainWindow = new BrowserWindow({
-            'show': showWindow,
-            'webPreferences': {'devTools': showWindow}
-        }),
+    var setupWindowOptions = function (options) {
+        options.show = showWindow;
+        options.webPreferences = options.webPreferences || {};
+        options.webPreferences.devTools = showWindow;
+        options.webPreferences.nodeIntegration = false;
+        options.webPreferences.preload = Path.resolve(__dirname, 'ElectronServerPreload.js');
+
+        return options;
+    };
+
+    var mainWindow = new BrowserWindow(setupWindowOptions({})),
         currWindow = mainWindow,
         pageVisited = null,
         hdrs = {},
@@ -99,8 +107,9 @@ Electron.app.on('ready', function() {
         cookieResponse = null,
         screenshotResponse = null,
         windowWillUnload = false,
-        newWindowName = null,
         windowIdNameMap = {};
+
+    global.newWindowName = '';
 
     global.setExecutionError = function (error) {
         Logger.error('Script evaluation failed internally: %s', (error ? (error.stack || error) : '').toString());
@@ -168,62 +177,19 @@ Electron.app.on('ready', function() {
                     lastStatusCode = httpResponseCode;
                     lastHeaders = headers;
                 })
-                .on('new-window', function (event, url, frameName) {
+                .on('new-window', function (event, url, frameName, disposition, options) {
                     Logger.info('Creating window "%s" for url "%s".', frameName, url);
                     windowWillUnload = true;
                     pageVisited = null;
-                    newWindowName = frameName;
+                    global.newWindowName = frameName;
+                    setupWindowOptions(options);
                 })
                 .on('did-finish-load', function () {
-                    Logger.debug('Attaching JS to page...');
-
-                    window.webContents
-                        .executeJavaScript(
-                            '(function () {\
-                                var callGlobalFn = function (name, args) {\
-                                    var remote = (require("electron") || {}).remote;\
-                                    if (remote) {\
-                                        var remoteFn = remote.getGlobal(name);\
-                                        if (!remoteFn) throw new Error("Requested global js function not found: " + name);\
-                                        remoteFn.apply(remote, args);\
-                                    }\
-                                };\
-                                \
-                                var oldOnError = window.onerror;\
-                                window.onerror = function (error) {\
-                                    callGlobalFn("setExecutionError", [error]);\
-                                    if (oldOnError) oldOnError();\
-                                };\
-                                \
-                                var oldOnUnload = window.onbeforeunload;\
-                                window.onbeforeunload = function (error) {\
-                                    callGlobalFn("setWindowUnloading", [true]);\
-                                    if (oldOnUnload) oldOnUnload();\
-                                    callGlobalFn("setWindowIdName", [' + window.id + ', null, location.href]);\
-                                };\
-                                \
-                                var oldWndName = window.name;\
-                                window.__defineSetter__("name", function (name) {\
-                                    oldWndName = name;\
-                                    callGlobalFn("setWindowIdName", [' + window.id + ', name, location.href]);\
-                                });\
-                                window.__defineGetter__("name", function () { return oldWndName; });\
-                                \
-                                window.name = ' + JSON.stringify(newWindowName) + ';\
-                            })();', true)
-                        .then(
-                            function () {
-                                Logger.info('Page finished loading and JS attached successfully.');
-                                pageVisited = true;
-                            },
-                            function (error) {
-                                Logger.error('Could not attach JS to page: %s', (error ? (error.stack || error) : '').toString());
-                            }
-                        )
-                    ;
+                    Logger.info('Page finished loading.');
+                    pageVisited = true;
                 })
                 .on('did-fail-load', function (event, errorCode, errorDescription, validatedURL, isMainFrame) {
-                    Logger.warn('Page failed to load (error %s): %s.', errorCode, errorDescription);
+                    Logger.warn('Page failed to load (error %s): %s (validatedURL: "%s", isMainFrame: %s).', errorCode, errorDescription, validatedURL, isMainFrame ? 'yes' : 'no');
                     pageVisited = true;
                 })
                 .on('crashed', function (event, killed) {
