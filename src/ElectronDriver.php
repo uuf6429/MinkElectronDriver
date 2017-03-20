@@ -481,7 +481,7 @@ JS
                         
                     case element.tagName == 'INPUT' && element.type == 'checkbox':
                         if (element.checked != value) element.click();
-                        break;
+                        return;
                         
                     case element.tagName == 'INPUT' && element.type == 'radio':
                         {$this->scriptSelectRadioValue()}
