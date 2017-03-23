@@ -27,8 +27,6 @@ const Electron = require('electron'),
     BrowserWindow = Electron.BrowserWindow,
     Path = require('path'),
     DNode = require('dnode'),
-    Temp = require('temp'),
-    FS = require('fs'),
     Util = require('util'),
     QueryString = require('querystring'),
     // See PSR-3 LogLevel constants.
@@ -100,14 +98,13 @@ Electron.app.on('ready', function() {
         hdrs = {},
         auth = {'user': false, 'pass': null},
         lastStatusCode = null,
-        lastContentPath = null,
-        lastContentSaved = null,
         lastHeaders = null,
         executeResponse = null,
         cookieResponse = null,
         screenshotResponse = null,
         windowWillUnload = false,
-        windowIdNameMap = {};
+        windowIdNameMap = {},
+        attachFileResponse = null;
 
     global.newWindowName = '';
 
@@ -199,6 +196,26 @@ Electron.app.on('ready', function() {
                     Logger.error('Plugin %s version %s crashed.', name, version);
                 })
             ;
+
+            try {
+                window.webContents.debugger.attach('1.2');
+                window.webContents.debugger.on('message', function (event, message, params) {
+                    if (message == 'Network.responseReceived') { // and is mainframe?
+                        window.webContents.debugger.sendCommand(
+                            'Network.getResponseBody',
+                            {'requestId': params.requestId},
+                            function (_, response) {
+                                Logger.debug('Read response body.');
+                                window._lastContent = {content: response.body};
+                            }
+                        );
+                    }
+                });
+                window.webContents.debugger.sendCommand('Network.enable');
+
+            } catch (error) {
+                Logger.error('Could not attach debugger: %s', (error ? (error.stack || error) : '').toString());
+            }
         }
     );
     Electron.app.emit('browser-window-created', null, mainWindow);
@@ -377,33 +394,9 @@ Electron.app.on('ready', function() {
             },
 
             getContent: function (cb) {
-                lastContentSaved = null;
-                lastContentPath = Temp.path({'suffix': '.data'});
-                var started = currWindow.webContents.savePage(lastContentPath, 'HTMLComplete', function (error) {
-                    lastContentSaved = error || true;
-                });
+                var lastContent = currWindow._lastContent || null;
 
-                Logger.debug('getContent() => %s (saving to %s)', started, lastContentPath);
-
-                cb(started);
-            },
-
-            getContentResponse: function (cb) {
-                var lastContent = null;
-
-                if (lastContentSaved) {
-                    if (lastContentSaved === true) {
-                        lastContent = {'content': FS.readFileSync(lastContentPath).toString()};
-                    } else {
-                        lastContent = {'error': lastContentSaved};
-                    }
-
-                    FS.unlink(lastContentPath, function () {
-                        Logger.debug('Deleted temporary content file.');
-                    });
-                }
-
-                Logger.debug('getContentResponse() => %s (reading from %s)', JSON.stringify(lastContent), lastContentPath);
+                Logger.debug('getContent() => %j', lastContent);
 
                 cb(lastContent);
             },
@@ -485,6 +478,117 @@ Electron.app.on('ready', function() {
                 (name === null ? currWindow : findWindowByName(name)).maximize();
 
                 cb();
+            },
+
+            attachFile: function (xpath, path, cb) {
+                Logger.debug('attachFile(%s, %s)', xpath, path);
+
+                /* This code is arguably quite complex, so it warrants an explanation.
+                 * First of all, note that you can't just change a file input's value, for security reasons, even if we
+                 * are theoretically privileged from Electron's point of view. The solution is a to use RemoteDebug API
+                 * as described here: https://github.com/electron/electron/issues/749 (which requires attaching a debugger).
+                 * This unfortunately complicates matters slightly - the protocol does not allow querying by an XPath
+                 * query (as far as I can tell). So we do a very simple hack: find the element via JS, record its id
+                 * (if it has one), set the id to some random value, reference that random id when doing RemoteDebug calls
+                 * and finally restore the id to the initial value. Since this call is pseudo-synchronous, the client (Mink)
+                 * won't ever know about this and everyone will be happy. :)
+                 */
+
+                attachFileResponse = null;
+                var randomFileId = 'electronFile' + Math.round(Math.random() * 100000);
+                var restoreFileId = function () {
+                    return currWindow.webContents
+                        .executeJavaScript(
+                            'var element = document.evaluate(' + JSON.stringify(xpath) + ', document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;\
+                            if (element.tagName != "INPUT" || element.type != "file") throw new Error("Element is not a valid file input field.");\
+                            element.id = Electron.tmpFileId;\
+                            delete Electron.tmpFileId;'
+                        );
+                };
+                var isEmptyObject = function (obj) {
+                    return Object.keys(obj).length === 0 && obj.constructor === Object;
+                };
+
+                currWindow.webContents
+                    .executeJavaScript(
+                        'var element = document.evaluate(' + JSON.stringify(xpath) + ', document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;\
+                        if (element.tagName != "INPUT" || element.type != "file") throw new Error("Element is not a valid file input field.");\
+                        Electron.tmpFileId = element.id;\
+                        element.id = ' + JSON.stringify(randomFileId) + ';'
+                    )
+                    .then(
+                        function () {
+                            currWindow.webContents.debugger.sendCommand('DOM.getDocument', {}, function (error, res) {
+                                if (!isEmptyObject(error)) {
+                                    Logger.error('Could not get document from RemoteDebug: %s', (error ? (error.stack || error) : '').toString());
+                                    attachFileResponse = {'error': (error ? (error.stack || error) : '').toString()};
+                                    return;
+                                }
+
+                                currWindow.webContents.debugger.sendCommand('DOM.querySelector', {
+                                    nodeId: res.root.nodeId,
+                                    selector: '#' + randomFileId
+                                }, function (error, res) {
+                                    if (!isEmptyObject(error)) {
+                                        Logger.error('Could not query document from RemoteDebug: %s', (error ? (error.stack || error) : '').toString());
+                                        attachFileResponse = {'error': (error ? (error.stack || error) : '').toString()};
+                                        return;
+                                    }
+
+                                    currWindow.webContents.debugger.sendCommand('DOM.setFileInputFiles', {
+                                        nodeId: res.nodeId,
+                                        files: [path]
+                                    }, function (error, res) {
+                                        if (!isEmptyObject(error)) {
+                                            Logger.error('Could not attach file from RemoteDebug: %s', (error ? (error.stack || error) : '').toString());
+                                            attachFileResponse = {'error': (error ? (error.stack || error) : '').toString()};
+                                            return;
+                                        }
+
+                                        restoreFileId()
+                                            .then(
+                                                function () {
+                                                    Logger.info('File was attached to input field successfully.');
+                                                    attachFileResponse = true;
+                                                },
+                                                function (error) {
+                                                    Logger.error('Could restore element id after attaching file: %s', (error ? (error.stack || error) : '').toString());
+                                                    attachFileResponse = {'error': (error ? (error.stack || error) : '').toString()};
+                                                }
+                                            );
+                                    });
+                                });
+                            });
+                        },
+                        function (error) {
+                            restoreFileId()
+                                .then(
+                                    function () {
+                                        Logger.error('Could not prepare input field for attaching file: %s', (error ? (error.stack || error) : '').toString());
+                                        attachFileResponse = {'error': (error ? (error.stack || error) : '').toString()};
+                                    },
+                                    function (error2) {
+                                        Logger.error(
+                                            'Could not restore input field for attaching file (after preparing failed): %s\n%s',
+                                            (error2 ? (error2.stack || error2) : '').toString(),
+                                            (error ? (error.stack || error) : '').toString()
+                                        );
+                                        attachFileResponse = {
+                                            'error': (error2 ? (error2.stack || error2) : '').toString()
+                                            + '\n' + (error ? (error.stack || error) : '').toString()
+                                        };
+                                    }
+                                );
+                        }
+                    );
+
+                cb();
+            },
+
+            getAttachFileResponse: function (cb) {
+                Logger.debug('getAttachFileResponse() => %j', attachFileResponse);
+
+                cb(attachFileResponse);
             }
         },
         {

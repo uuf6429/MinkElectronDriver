@@ -298,16 +298,14 @@ class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
      */
     public function getContent()
     {
-        $started = $this->sendAndWaitWithResult('getContent');
-
-        if (!$started) {
-            throw new DriverException('Could not start saving page content.');
-        }
-
-        $result = $this->waitForAsyncResult('getContentResponse');
+        $result = $this->waitForAsyncResult('getContent');
 
         if (isset($result['error'])) {
             throw new DriverException('Could not save page content: ' . $result['error']);
+        }
+
+        if (!isset($result['content'])) {
+            throw new DriverException('Unexpected response from server: ' . json_encode($result));
         }
 
         return $result['content'];
@@ -722,19 +720,17 @@ JS
     }
 
     /**
-     * Attaches file path to file field located by it's XPath query.
-     *
-     * @param string $xpath
-     * @param string $path
-     *
-     * @throws UnsupportedDriverActionException When operation not supported by the driver
-     * @throws DriverException                  When the operation cannot be done
-     *
-     * @see \Behat\Mink\Element\NodeElement::attachFile
+     * @inheritdoc
      */
     public function attachFile($xpath, $path)
     {
-        $this->callBaseMethod(__FUNCTION__, func_get_args()); // TODO: Implement attachFile() method.
+        $this->sendAndWaitWithoutResult('attachFile', [$xpath, $path]);
+
+        $result = $this->waitForAsyncResult('getAttachFileResponse');
+
+        if (isset($result['error'])) {
+            throw new DriverException('Could not attach file: ' . $result['error']);
+        }
     }
 
     /**
