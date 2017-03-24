@@ -121,6 +121,7 @@ Electron.app.on('ready', function() {
             Logger.info('Page is unloading.');
 
             pageVisited = null;
+            captureResponse = true;
         }
 
         windowWillUnload = value;
@@ -176,6 +177,7 @@ Electron.app.on('ready', function() {
                     Logger.info('Creating window "%s" for url "%s".', frameName, url);
                     windowWillUnload = true;
                     pageVisited = null;
+                    captureResponse = true;
                     global.newWindowName = frameName;
                     setupWindowOptions(options);
                 })
@@ -201,11 +203,11 @@ Electron.app.on('ready', function() {
             ;
 
             var getDecodedBody = function (response) {
-                if (!response.base64Encoded) {
+                if (!response['base64Encoded']) {
                     return response.body;
                 }
 
-                if (typeof Buffer.from === "function") {
+                if (typeof Buffer.from === 'function') {
                     return Buffer.from(response.body, 'base64').toString();
                 } else {
                     return new Buffer(response.body, 'base64').toString();
@@ -221,8 +223,6 @@ Electron.app.on('ready', function() {
                             'Network.getResponseBody',
                             {'requestId': params.requestId},
                             function (_, response) {
-                                captureResponse = false;
-
                                 lastResponses[window.id] = {
                                     url: params.response.url,
                                     status: params.response.status,
@@ -234,6 +234,8 @@ Electron.app.on('ready', function() {
                                 Logger.debug('Last response for window %s set to: %j', window.id, lastResponses[window.id]);
                             }
                         );
+
+                        captureResponse = false;
                     } else {
                         Logger.debug('Discarded "%s" event with params: %j', message, params);
                     }
