@@ -102,6 +102,7 @@ class WebDriverTest extends TestCase
 
         $this->driver->visit('https://httpbin.org/status/500');
         $this->assertSame(500, $this->driver->getStatusCode());
+        $this->assertNull($this->driver->getContent());
     }
 
     public function testPostResponse()

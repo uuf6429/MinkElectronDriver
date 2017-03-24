@@ -39,28 +39,31 @@ const Electron = require('electron'),
             'warning': 2,
             'error': 3
         },
-        log: function(level, message, context) {
+        logFmt: function (level, fmtArgs, context) {
             if (Logger.LogLevel <= Logger.LevelMap[level]) {
                 context = context || {};
                 context.srcTime = Date.now() / 1000;
                 process.stdout.write(JSON.stringify({
                         'level': level,
-                        'message': message,
+                        'message': Util.format.apply(null, fmtArgs),
                         'context': context
                     }) + '\n');
             }
         },
+        log: function(level, message, context) {
+            this.logFmt(level, [message], context);
+        },
         debug: function(){
-            this.log('debug', Util.format.apply(null, arguments));
+            this.logFmt('debug', arguments);
         },
         info: function(){
-            this.log('info', Util.format.apply(null, arguments));
+            this.logFmt('info', arguments);
         },
         warn: function(){
-            this.log('warning', Util.format.apply(null, arguments));
+            this.logFmt('warning', arguments);
         },
         error: function(){
-            this.log('error', Util.format.apply(null, arguments));
+            this.logFmt('error', arguments);
         }
     };
 
@@ -97,14 +100,14 @@ Electron.app.on('ready', function() {
         pageVisited = null,
         hdrs = {},
         auth = {'user': false, 'pass': null},
-        lastStatusCode = null,
-        lastHeaders = null,
         executeResponse = null,
         cookieResponse = null,
         screenshotResponse = null,
         windowWillUnload = false,
         windowIdNameMap = {},
-        attachFileResponse = null;
+        attachFileResponse = null,
+        captureResponse = false,
+        lastResponses = {};
 
     global.newWindowName = '';
 
@@ -118,7 +121,6 @@ Electron.app.on('ready', function() {
             Logger.info('Page is unloading.');
 
             pageVisited = null;
-            lastStatusCode = null;
         }
 
         windowWillUnload = value;
@@ -170,16 +172,17 @@ Electron.app.on('ready', function() {
                         callback(auth.user, auth.pass);
                     }
                 })
-                .on('did-get-response-details', function (event, status, newURL, originalURL, httpResponseCode, requestMethod, referrer, headers, resourceType) {
-                    lastStatusCode = httpResponseCode;
-                    lastHeaders = headers;
-                })
                 .on('new-window', function (event, url, frameName, disposition, options) {
                     Logger.info('Creating window "%s" for url "%s".', frameName, url);
                     windowWillUnload = true;
                     pageVisited = null;
                     global.newWindowName = frameName;
                     setupWindowOptions(options);
+                })
+                .on('closed', function () {
+                    Logger.info('Window "%s" (id %d) has been closed.', windowIdNameMap[window.id] || '', window.id);
+                    delete windowIdNameMap[window.id];
+                    delete lastResponses[window.id];
                 })
                 .on('did-finish-load', function () {
                     Logger.info('Page finished loading.');
@@ -197,20 +200,45 @@ Electron.app.on('ready', function() {
                 })
             ;
 
+            var getDecodedBody = function (response) {
+                if (!response.base64Encoded) {
+                    return response.body;
+                }
+
+                if (typeof Buffer.from === "function") {
+                    return Buffer.from(response.body, 'base64').toString();
+                } else {
+                    return new Buffer(response.body, 'base64').toString();
+                }
+            };
+
             try {
                 window.webContents.debugger.attach('1.2');
+
                 window.webContents.debugger.on('message', function (event, message, params) {
-                    if (message == 'Network.responseReceived') { // and is mainframe?
+                    if (captureResponse && message === 'Network.responseReceived') {
                         window.webContents.debugger.sendCommand(
                             'Network.getResponseBody',
                             {'requestId': params.requestId},
                             function (_, response) {
-                                Logger.debug('Read response body.');
-                                window._lastContent = {content: response.body};
+                                captureResponse = false;
+
+                                lastResponses[window.id] = {
+                                    url: params.response.url,
+                                    status: params.response.status,
+                                    statusText: params.response.statusText,
+                                    headers: params.response.headers,
+                                    content: getDecodedBody(response)
+                                };
+
+                                Logger.debug('Last response for window %s set to: %j', window.id, lastResponses[window.id]);
                             }
                         );
+                    } else {
+                        Logger.debug('Discarded "%s" event with params: %j', message, params);
                     }
                 });
+
                 window.webContents.debugger.sendCommand('Network.enable');
 
             } catch (error) {
@@ -241,7 +269,8 @@ Electron.app.on('ready', function() {
                 Logger.debug('clearVisitedResponse()');
 
                 pageVisited = null;
-                lastStatusCode = null;
+                captureResponse = true;
+                lastResponses[currWindow.id] = null;
 
                 cb();
             },
@@ -327,7 +356,9 @@ Electron.app.on('ready', function() {
             },
 
             getResponseHeaders: function (cb) {
-                Logger.debug('getResponseHeaders() => %j', lastHeaders);
+                var lastHeaders = (lastResponses[currWindow.id] || {}).headers || null;
+
+                Logger.debug('getResponseHeaders() (winId: %d) => %j', currWindow.id, lastHeaders);
 
                 cb(lastHeaders);
             },
@@ -388,15 +419,17 @@ Electron.app.on('ready', function() {
             },
 
             getStatusCode: function (cb) {
-                Logger.debug('getStatusCode() => %s', lastStatusCode);
+                var lastStatus = (lastResponses[currWindow.id] || {}).status || null;
 
-                cb(lastStatusCode);
+                Logger.debug('getStatusCode() (winId: %d) => %s', currWindow.id, lastStatus);
+
+                cb(lastStatus);
             },
 
             getContent: function (cb) {
-                var lastContent = currWindow._lastContent || null;
+                var lastContent = {content: ((lastResponses[currWindow.id] || {}).content || null)};
 
-                Logger.debug('getContent() => %j', lastContent);
+                Logger.debug('getContent() (winId: %d) => %j', currWindow.id, lastContent);
 
                 cb(lastContent);
             },
@@ -538,7 +571,7 @@ Electron.app.on('ready', function() {
                                     currWindow.webContents.debugger.sendCommand('DOM.setFileInputFiles', {
                                         nodeId: res.nodeId,
                                         files: [path]
-                                    }, function (error, res) {
+                                    }, function (error) {
                                         if (!isEmptyObject(error)) {
                                             Logger.error('Could not attach file from RemoteDebug: %s', (error ? (error.stack || error) : '').toString());
                                             attachFileResponse = {'error': (error ? (error.stack || error) : '').toString()};

@@ -304,7 +304,7 @@ class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
             throw new DriverException('Could not save page content: ' . $result['error']);
         }
 
-        if (!isset($result['content'])) {
+        if (!array_key_exists('content', $result)) {
             throw new DriverException('Unexpected response from server: ' . json_encode($result));
         }
 
@@ -423,7 +423,7 @@ class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
             (function () {
                 var i;
                 switch (true) {
-                    case element.tagName == 'SELECT' && element.multiple:
+                    case element.tagName === 'SELECT' && element.multiple:
                         var selected = [];
                         for (i = 0; i < element.options.length; i++) {
                             if (element.options[i].selected) {
@@ -431,9 +431,9 @@ class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
                             }
                         }
                         return selected;
-                    case element.tagName == 'INPUT' && element.type == 'checkbox':
+                    case element.tagName === 'INPUT' && element.type === 'checkbox':
                         return element.checked ? element.value : null;
-                    case element.tagName == 'INPUT' && element.type == 'radio':
+                    case element.tagName === 'INPUT' && element.type === 'radio':
                         var name = element.getAttribute('name');
                         if (name) {
                             var radioButtons = window.document.getElementsByName(name);
@@ -463,8 +463,8 @@ JS
             (function () {
                 var i;
                 switch (true) {
-                    case element.tagName == 'SELECT':
-                        if (value && value.constructor.name == 'Array') {
+                    case element.tagName === 'SELECT':
+                        if (value && value.constructor.name === 'Array') {
                             {$this->scriptDeselectAllOptions()}
                             var oldValue = value;
                             for (var n = 0; n < oldValue.length; n++) {
@@ -477,15 +477,15 @@ JS
                         }
                         return;
                         
-                    case element.tagName == 'INPUT' && element.type == 'checkbox':
-                        if (element.checked != value) element.click();
+                    case element.tagName === 'INPUT' && element.type === 'checkbox':
+                        if (element.checked === !value) element.click();
                         return;
                         
-                    case element.tagName == 'INPUT' && element.type == 'radio':
+                    case element.tagName === 'INPUT' && element.type === 'radio':
                         {$this->scriptSelectRadioValue()}
                         return;
                         
-                    case element.tagName == 'INPUT' && element.type == 'file':
+                    case element.tagName === 'INPUT' && element.type === 'file':
                         throw new Error('Changing ' + element.type + ' is not supported yet.');
                         
                     default:
@@ -508,7 +508,7 @@ JS
     {
         $this->evaluateForElementByXPath($xpath, <<<'JS'
             (function () {
-                if (!element || !((element.type == 'checkbox') || (element.type == 'radio')))
+                if (!element || !((element.type === 'checkbox') || (element.type === 'radio')))
                     throw new Error('Element is not a valid checkbox or radio button.');
                 
                 if (element.checked === false) element.click();
@@ -524,7 +524,7 @@ JS
     {
         $this->evaluateForElementByXPath($xpath, <<<'JS'
             (function () {
-                if (!element || !((element.type == 'checkbox') || (element.type == 'radio')))
+                if (!element || !((element.type === 'checkbox') || (element.type === 'radio')))
                     throw new Error('Element is not a valid checkbox or radio button.');
                 
                 if (element.checked === true) element.click();
@@ -540,7 +540,7 @@ JS
     {
         return $this->evaluateForElementByXPath($xpath, <<<'JS'
             (function () {
-                if (!element || !((element.type == 'checkbox') || (element.type == 'radio')))
+                if (!element || !((element.type === 'checkbox') || (element.type === 'radio')))
                     throw new Error('Element is not a valid checkbox or radio button.');
                 
                 return element.checked;
@@ -556,12 +556,12 @@ JS
     {
         $this->evaluateForElementByXPath($xpath, <<<JS
             (function () {
-                if (element.tagName == 'INPUT' && element.type == 'radio') {
+                if (element.tagName === 'INPUT' && element.type === 'radio') {
                     {$this->scriptSelectRadioValue()}
                     return;
                 }
         
-                if (element.tagName == 'SELECT') {
+                if (element.tagName === 'SELECT') {
                     {$this->scriptSelectOptionOnElement()}
                     return;
                 }
@@ -663,19 +663,19 @@ JS;
     {
         return $this->evaluateForElementByXPath($xpath, <<<'JS'
             (function () {
-                if (!element || element.tagName != 'OPTION')
+                if (!element || element.tagName !== 'OPTION')
                     throw new Error('Element is not a valid option element.');
                 
                 var select;
-                if (element.parentElement.tagName == 'SELECT') { // select -> option
+                if (element.parentElement.tagName === 'SELECT') { // select -> option
                     select = element.parentElement;
-                } else if(element.parentElement.parentElement.tagName == 'SELECT') { // select -> optgroup -> option
+                } else if(element.parentElement.parentElement.tagName === 'SELECT') { // select -> optgroup -> option
                     select = element.parentElement.parentElement;
                 } else {
                     throw new Error('Could not find a containing select element.');
                 }
                 
-                return select.value == element.value;
+                return select.value === element.value;
             })();
 JS
         );
