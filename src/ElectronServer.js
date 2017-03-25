@@ -95,6 +95,14 @@ Electron.app.on('ready', function() {
         return options;
     };
 
+    /**
+     * @param obj
+     * @returns {boolean}
+     */
+    var isEmptyObject = function (obj) {
+        return Object.keys(obj).length === 0 && obj.constructor === Object;
+    };
+
     var mainWindow = new BrowserWindow(setupWindowOptions({})),
         currWindow = mainWindow,
         pageVisited = null,
@@ -110,12 +118,21 @@ Electron.app.on('ready', function() {
         lastResponses = {};
 
     global.newWindowName = '';
+    global.DELAY_SCRIPT_RESPONSE = '{%DelayElectronScriptResponse%}';
 
+    /**
+     * Sets the executeResponse value to the passed error.
+     * @param {Error} error
+     */
     global.setExecutionError = function (error) {
         Logger.error('Script evaluation failed internally: %s', (error ? (error.stack || error) : '').toString());
         executeResponse = {'error': (error ? (error.stack || error) : '').toString()};
     };
 
+    /**
+     * Sets flag indicating that something caused the current page to start unloading.
+     * @param {boolean} value
+     */
     global.setWindowUnloading = function (value) {
         if (value) {
             Logger.info('Page is unloading.');
@@ -127,18 +144,30 @@ Electron.app.on('ready', function() {
         windowWillUnload = value;
     };
 
+    /**
+     *
+     * @param {?integer} id
+     * @param {string} name
+     * @param {string} url
+     */
     global.setWindowIdName = function (id, name, url) {
-        id = id === null ? "" : id.toString();
+        var sId = id === null ? "" : id.toString();
 
         if (name === null) {
-            Logger.info('Unlinked window named "%s" from id "%s" for %s.', name, id, url);
-            if (windowIdNameMap[id]) delete windowIdNameMap[id];
+            Logger.info('Unlinked window named "%s" from id "%s" for %s.', name, sId, url);
+            if (windowIdNameMap[sId]) delete windowIdNameMap[sId];
         } else {
-            Logger.info('Linked window named "%s" with id "%s" for %s.', name, id, url);
-            windowIdNameMap[id] = name;
+            Logger.info('Linked window named "%s" with id "%s" for %s.', name, sId, url);
+            windowIdNameMap[sId] = name;
         }
     };
 
+    /**
+     * Finds window by its window name. Note that this depends on the windows successfully registering it's id and name
+     * when created. Since we keep these details in a hash map, we need to be careful about keeping it up to date.
+     * @param {string} name
+     * @returns {Electron.BrowserWindow}
+     */
     var findWindowByName = function (name) {
         var result = [];
 
@@ -157,6 +186,64 @@ Electron.app.on('ready', function() {
             default:
                 throw new Error('There are ' + result.length + ' windows named "' + name + '".');
         }
+    };
+
+    /**
+     * Runs some code for an element retrieved from RemoteDebug with an XPath query.
+     * It involves a hack: since RD does not support querying via XPath, we assign a random element id and use it
+     * to find the element via RD. Afterwards, we restore the original element id (if there was any).
+     * @param {Electron.BrowserWindow} window
+     * @param {string} xpath
+     * @param {function(element,function())} onSuccess
+     * @param {function(Error,function())} onFailure
+     */
+    var withElementByXpath = function (window, xpath, onSuccess, onFailure) {
+        var electronTmpKey = 'tmpElementId';
+        var randomElementId = 'electronElement' + Math.round(Math.random() * 100000);
+        var restoreElementId = function () {
+            return currWindow.webContents
+                .executeJavaScript(
+                    'var element = document.evaluate(' + JSON.stringify(xpath) + ', document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;\
+                                if (element.tagName != "INPUT" || element.type != "file") throw new Error("Element is not a valid file input field.");\
+                                element.id = Electron.' + electronTmpKey + ';\
+                                delete Electron.' + electronTmpKey + ';'
+                );
+        };
+
+        currWindow.webContents
+            .executeJavaScript(
+                'var element = document.evaluate(' + JSON.stringify(xpath) + ', document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;\
+                            if (element.tagName != "INPUT" || element.type != "file") throw new Error("Element is not a valid file input field.");\
+                            Electron.' + electronTmpKey + ' = element.id;\
+                            element.id = ' + JSON.stringify(randomElementId) + ';'
+            )
+            .then(
+                function () {
+                    currWindow.webContents.debugger.sendCommand('DOM.getDocument', {}, function (error, res) {
+                        if (!isEmptyObject(error)) {
+                            var msg = 'Could not get document from RemoteDebug: ' + (error ? (error.stack || error) : '').toString();
+                            onFailure(new Error(msg), restoreElementId);
+                            return;
+                        }
+
+                        currWindow.webContents.debugger.sendCommand('DOM.querySelector', {
+                            nodeId: res.root.nodeId,
+                            selector: '#' + randomElementId
+                        }, function (error, res) {
+                            if (!isEmptyObject(error)) {
+                                var msg = 'Could not query document from RemoteDebug: ' + (error ? (error.stack || error) : '').toString();
+                                onFailure(new Error(msg), restoreElementId);
+                            } else {
+                                onSuccess(res, restoreElementId);
+                            }
+                        });
+                    });
+                },
+                function (error) {
+                    var msg = 'Could not query document from RemoteDebug: ' + (error ? (error.stack || error) : '').toString();
+                    onFailure(new Error(msg), function () {});
+                }
+            );
     };
 
     Electron.app.on(
@@ -449,7 +536,9 @@ Electron.app.on('ready', function() {
                         .then(
                             function (result) {
                                 Logger.debug('Evaluated script with result: %j', result);
-                                executeResponse = {'result': result};
+                                if (result !== global.DELAY_SCRIPT_RESPONSE) {
+                                    executeResponse = {'result': result};
+                                }
                             },
                             function (error) {
                                 Logger.error('Script evaluation failed: %s', (error ? (error.stack || error) : '').toString());
@@ -518,104 +607,38 @@ Electron.app.on('ready', function() {
             attachFile: function (xpath, path, cb) {
                 Logger.debug('attachFile(%s, %s)', xpath, path);
 
-                /* This code is arguably quite complex, so it warrants an explanation.
-                 * First of all, note that you can't just change a file input's value, for security reasons, even if we
-                 * are theoretically privileged from Electron's point of view. The solution is a to use RemoteDebug API
-                 * as described here: https://github.com/electron/electron/issues/749 (which requires attaching a debugger).
-                 * This unfortunately complicates matters slightly - the protocol does not allow querying by an XPath
-                 * query (as far as I can tell). So we do a very simple hack: find the element via JS, record its id
-                 * (if it has one), set the id to some random value, reference that random id when doing RemoteDebug calls
-                 * and finally restore the id to the initial value. Since this call is pseudo-synchronous, the client (Mink)
-                 * won't ever know about this and everyone will be happy. :)
+                attachFileResponse = null;
+
+                /* Unfortunately, electron doesn't expose an easy way to set a file input element's file, and we can't
+                 * do it from plain JS due to security restrictions. The solution is a to use RemoteDebug API as
+                 * described here: https://github.com/electron/electron/issues/749 (which requires attaching a debugger).
                  */
 
-                attachFileResponse = null;
-                var randomFileId = 'electronFile' + Math.round(Math.random() * 100000);
-                var restoreFileId = function () {
-                    return currWindow.webContents
-                        .executeJavaScript(
-                            'var element = document.evaluate(' + JSON.stringify(xpath) + ', document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;\
-                            if (element.tagName != "INPUT" || element.type != "file") throw new Error("Element is not a valid file input field.");\
-                            element.id = Electron.tmpFileId;\
-                            delete Electron.tmpFileId;'
-                        );
-                };
-                var isEmptyObject = function (obj) {
-                    return Object.keys(obj).length === 0 && obj.constructor === Object;
-                };
+                withElementByXpath(
+                    currWindow,
+                    xpath,
+                    function (element, onDone) {
+                        currWindow.webContents.debugger.sendCommand('DOM.setFileInputFiles', {
+                            nodeId: element.nodeId,
+                            files: [path]
+                        }, function (error) {
+                            if (!isEmptyObject(error)) {
+                                Logger.error('Could not attach file from RemoteDebug: %s', (error ? (error.stack || error) : '').toString());
+                                attachFileResponse = {'error': (error ? (error.stack || error) : '').toString()};
+                            } else {
+                                Logger.info('File was attached to input field successfully.');
+                                attachFileResponse = true;
+                            }
 
-                currWindow.webContents
-                    .executeJavaScript(
-                        'var element = document.evaluate(' + JSON.stringify(xpath) + ', document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;\
-                        if (element.tagName != "INPUT" || element.type != "file") throw new Error("Element is not a valid file input field.");\
-                        Electron.tmpFileId = element.id;\
-                        element.id = ' + JSON.stringify(randomFileId) + ';'
-                    )
-                    .then(
-                        function () {
-                            currWindow.webContents.debugger.sendCommand('DOM.getDocument', {}, function (error, res) {
-                                if (!isEmptyObject(error)) {
-                                    Logger.error('Could not get document from RemoteDebug: %s', (error ? (error.stack || error) : '').toString());
-                                    attachFileResponse = {'error': (error ? (error.stack || error) : '').toString()};
-                                    return;
-                                }
-
-                                currWindow.webContents.debugger.sendCommand('DOM.querySelector', {
-                                    nodeId: res.root.nodeId,
-                                    selector: '#' + randomFileId
-                                }, function (error, res) {
-                                    if (!isEmptyObject(error)) {
-                                        Logger.error('Could not query document from RemoteDebug: %s', (error ? (error.stack || error) : '').toString());
-                                        attachFileResponse = {'error': (error ? (error.stack || error) : '').toString()};
-                                        return;
-                                    }
-
-                                    currWindow.webContents.debugger.sendCommand('DOM.setFileInputFiles', {
-                                        nodeId: res.nodeId,
-                                        files: [path]
-                                    }, function (error) {
-                                        if (!isEmptyObject(error)) {
-                                            Logger.error('Could not attach file from RemoteDebug: %s', (error ? (error.stack || error) : '').toString());
-                                            attachFileResponse = {'error': (error ? (error.stack || error) : '').toString()};
-                                            return;
-                                        }
-
-                                        restoreFileId()
-                                            .then(
-                                                function () {
-                                                    Logger.info('File was attached to input field successfully.');
-                                                    attachFileResponse = true;
-                                                },
-                                                function (error) {
-                                                    Logger.error('Could restore element id after attaching file: %s', (error ? (error.stack || error) : '').toString());
-                                                    attachFileResponse = {'error': (error ? (error.stack || error) : '').toString()};
-                                                }
-                                            );
-                                    });
-                                });
-                            });
-                        },
-                        function (error) {
-                            restoreFileId()
-                                .then(
-                                    function () {
-                                        Logger.error('Could not prepare input field for attaching file: %s', (error ? (error.stack || error) : '').toString());
-                                        attachFileResponse = {'error': (error ? (error.stack || error) : '').toString()};
-                                    },
-                                    function (error2) {
-                                        Logger.error(
-                                            'Could not restore input field for attaching file (after preparing failed): %s\n%s',
-                                            (error2 ? (error2.stack || error2) : '').toString(),
-                                            (error ? (error.stack || error) : '').toString()
-                                        );
-                                        attachFileResponse = {
-                                            'error': (error2 ? (error2.stack || error2) : '').toString()
-                                            + '\n' + (error ? (error.stack || error) : '').toString()
-                                        };
-                                    }
-                                );
-                        }
-                    );
+                            onDone();
+                        });
+                    },
+                    function (error, onDone) {
+                        Logger.error('Could not attach file: %s', (error ? (error.stack || error) : '').toString());
+                        attachFileResponse = {'error': (error ? (error.stack || error) : '').toString()};
+                        onDone();
+                    }
+                );
 
                 cb();
             },
