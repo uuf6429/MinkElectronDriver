@@ -204,18 +204,18 @@ Electron.app.on('ready', function() {
             return currWindow.webContents
                 .executeJavaScript(
                     'var element = document.evaluate(' + JSON.stringify(xpath) + ', document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;\
-                                if (element.tagName != "INPUT" || element.type != "file") throw new Error("Element is not a valid file input field.");\
-                                element.id = Electron.' + electronTmpKey + ';\
-                                delete Electron.' + electronTmpKey + ';'
+                    if (element.tagName != "INPUT" || element.type != "file") throw new Error("Element is not a valid file input field.");\
+                    element.id = Electron.' + electronTmpKey + ';\
+                    delete Electron.' + electronTmpKey + ';'
                 );
         };
 
         currWindow.webContents
             .executeJavaScript(
                 'var element = document.evaluate(' + JSON.stringify(xpath) + ', document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;\
-                            if (element.tagName != "INPUT" || element.type != "file") throw new Error("Element is not a valid file input field.");\
-                            Electron.' + electronTmpKey + ' = element.id;\
-                            element.id = ' + JSON.stringify(randomElementId) + ';'
+                if (element.tagName != "INPUT" || element.type != "file") throw new Error("Element is not a valid file input field.");\
+                Electron.' + electronTmpKey + ' = element.id;\
+                element.id = ' + JSON.stringify(randomElementId) + ';'
             )
             .then(
                 function () {
@@ -244,6 +244,36 @@ Electron.app.on('ready', function() {
                     onFailure(new Error(msg), function () {});
                 }
             );
+    };
+
+    global.setFileFromScript = function (windowId, xpath, value) {
+        Logger.debug('setFileFromScript(%s, %s, %s)', windowId, xpath, value);
+
+        var window = BrowserWindow.fromId(parseInt(windowId));
+        withElementByXpath(
+            window,
+            xpath,
+            function (element, onDone) {
+                window.webContents.debugger.sendCommand('DOM.setFileInputFiles', {
+                    nodeId: element.nodeId,
+                    files: [path]
+                }, function (error) {
+                    if (!isEmptyObject(error)) {
+                        Logger.error('Could not set file value from RemoteDebug: %s', (error ? (error.stack || error) : '').toString());
+                        executeResponse = {'error': (error ? (error.stack || error) : '').toString()};
+                    } else {
+                        Logger.info('Value of file input field set successfully successfully.');
+                        executeResponse = {'result': true};
+                    }
+                    onDone();
+                });
+            },
+            function (error, onDone) {
+                Logger.error('Could not set file field value: %s', (error ? (error.stack || error) : '').toString());
+                executeResponse = {'error': (error ? (error.stack || error) : '').toString()};
+                onDone();
+            }
+        );
     };
 
     Electron.app.on(
@@ -524,7 +554,7 @@ Electron.app.on('ready', function() {
             },
 
             evaluateScript: function (script, cb) {
-                Logger.debug('evaluateScript(%s)', script);
+                Logger.debug('evaluateScript(%s) (winId: %d)', script, currWindow.id);
 
                 executeResponse = null;
 
@@ -535,9 +565,11 @@ Electron.app.on('ready', function() {
                         .executeJavaScript(script, true)
                         .then(
                             function (result) {
-                                Logger.debug('Evaluated script with result: %j', result);
                                 if (result !== global.DELAY_SCRIPT_RESPONSE) {
+                                    Logger.debug('Evaluated script with result: %j', result);
                                     executeResponse = {'result': result};
+                                } else {
+                                    Logger.debug('Evaluated script with delayed response.');
                                 }
                             },
                             function (error) {
@@ -629,7 +661,6 @@ Electron.app.on('ready', function() {
                                 Logger.info('File was attached to input field successfully.');
                                 attachFileResponse = true;
                             }
-
                             onDone();
                         });
                     },

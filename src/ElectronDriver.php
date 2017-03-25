@@ -486,7 +486,7 @@ JS
                         return;
                         
                     case element.tagName === 'INPUT' && element.type === 'file':
-                        throw new Error('Changing ' + element.type + ' is not supported yet.');
+                        return Electron.setFileFromScript(xpath, value);
                         
                     default:
                         element.value = value;
@@ -497,7 +497,7 @@ JS
             })();
 JS
             ,
-            ['value' => $value]
+            ['value' => $value, 'xpath' => $xpath]
         );
     }
 

@@ -2,9 +2,17 @@
     var remote = require('electron').remote,
         setExecutionError = remote.getGlobal('setExecutionError'),
         setWindowUnloading = remote.getGlobal('setWindowUnloading'),
-        setWindowIdName = remote.getGlobal('setWindowIdName');
+        setWindowIdName = remote.getGlobal('setWindowIdName'),
+        setFileFromScript = remote.getGlobal('setFileFromScript'),
+        DELAY_SCRIPT_RESPONSE = remote.getGlobal('DELAY_SCRIPT_RESPONSE');
 
-    window.ElectronSyn = require('syn');
+    window.Electron = window.Electron || {};
+    window.Electron.syn = require('syn');
+    window.Electron.winId = remote.getCurrentWindow().id;
+    window.Electron.setFileFromScript = function (xpath, value) {
+        setFileFromScript(remote.getCurrentWindow().id, xpath, value);
+        return DELAY_SCRIPT_RESPONSE;
+    };
 
     window.onerror = function (error) {
         setExecutionError(error);
@@ -98,7 +106,7 @@
 
         '_elementInDocument': function (element) {
             while (element = element.parentNode) {
-                if (element == document) {
+                if (element === document) {
                     return true;
                 }
             }
