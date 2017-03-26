@@ -198,24 +198,19 @@ Electron.app.on('ready', function() {
      * @param {function(Error,function())} onFailure
      */
     var withElementByXpath = function (window, xpath, onSuccess, onFailure) {
-        var electronTmpKey = 'tmpElementId';
+        var jsElementVarName = 'Electron.tmpElement';
         var randomElementId = 'electronElement' + Math.round(Math.random() * 100000);
         var restoreElementId = function () {
-            return currWindow.webContents
-                .executeJavaScript(
-                    'var element = document.evaluate(' + JSON.stringify(xpath) + ', document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;\
-                    if (element.tagName != "INPUT" || element.type != "file") throw new Error("Element is not a valid file input field.");\
-                    element.id = Electron.' + electronTmpKey + ';\
-                    delete Electron.' + electronTmpKey + ';'
-                );
+            return currWindow.webContents.executeJavaScript(jsElementVarName + '.id = Electron.tmpOldElementId;');
         };
 
         currWindow.webContents
             .executeJavaScript(
-                'var element = document.evaluate(' + JSON.stringify(xpath) + ', document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;\
-                if (element.tagName != "INPUT" || element.type != "file") throw new Error("Element is not a valid file input field.");\
-                Electron.' + electronTmpKey + ' = element.id;\
-                element.id = ' + JSON.stringify(randomElementId) + ';'
+                'var xpath = ' + JSON.stringify(xpath) + ';\
+                ' + jsElementVarName + ' = document.evaluate(xpath, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;\
+                if (!' + jsElementVarName + ') throw new Error("Could not find find element for XPath: " + xpath);\
+                Electron.tmpOldElementId = ' + jsElementVarName + '.id;\
+                ' + jsElementVarName + '.id = ' + JSON.stringify(randomElementId) + ';'
             )
             .then(
                 function () {
@@ -230,11 +225,12 @@ Electron.app.on('ready', function() {
                             nodeId: res.root.nodeId,
                             selector: '#' + randomElementId
                         }, function (error, res) {
-                            if (!isEmptyObject(error)) {
+                            if (isEmptyObject(error)) {
+                                res.jsElementVarName = jsElementVarName;
+                                onSuccess(res, restoreElementId);
+                            } else {
                                 var msg = 'Could not query document from RemoteDebug: ' + (error ? (error.stack || error) : '').toString();
                                 onFailure(new Error(msg), restoreElementId);
-                            } else {
-                                onSuccess(res, restoreElementId);
                             }
                         });
                     });
@@ -247,7 +243,7 @@ Electron.app.on('ready', function() {
     };
 
     global.setFileFromScript = function (windowId, xpath, value) {
-        Logger.debug('setFileFromScript(%s, %s, %s)', windowId, xpath, value);
+        Logger.debug('setFileFromScript(%j, %j, %j)', windowId, xpath, value);
 
         var window = BrowserWindow.fromId(parseInt(windowId));
         withElementByXpath(
@@ -256,16 +252,28 @@ Electron.app.on('ready', function() {
             function (element, onDone) {
                 window.webContents.debugger.sendCommand('DOM.setFileInputFiles', {
                     nodeId: element.nodeId,
-                    files: [path]
+                    files: [value]
                 }, function (error) {
-                    if (!isEmptyObject(error)) {
+                    if (isEmptyObject(error)) {
+                        onDone().then(function(){
+                            window.webContents
+                                .executeJavaScript('Electron.syn.trigger(' + element.jsElementVarName + ', "change", {});')
+                                .then(
+                                    function () {
+                                        Logger.info('Value of file input field set successfully successfully.');
+                                        executeResponse = {'result': true};
+                                    },
+                                    function (error) {
+                                        Logger.error('Could trigger change event: %s', (error ? (error.stack || error) : '').toString());
+                                        executeResponse = {'error': (error ? (error.stack || error) : '').toString()};
+                                    }
+                                );
+                        });
+                    } else {
                         Logger.error('Could not set file value from RemoteDebug: %s', (error ? (error.stack || error) : '').toString());
                         executeResponse = {'error': (error ? (error.stack || error) : '').toString()};
-                    } else {
-                        Logger.info('Value of file input field set successfully successfully.');
-                        executeResponse = {'result': true};
+                        onDone();
                     }
-                    onDone();
                 });
             },
             function (error, onDone) {
@@ -398,7 +406,7 @@ Electron.app.on('ready', function() {
                 var extraHeaders = '';
                 for (var key in hdrs) extraHeaders += key + ': ' + hdrs[key] + '\n';
 
-                Logger.debug('visit(%s) (extraHeaders: %s)', url, extraHeaders.replace(/\n/g, '\\n') || 'none');
+                Logger.debug('visit(%j) (extraHeaders: %s)', url, extraHeaders.replace(/\n/g, '\\n') || 'none');
 
                 currWindow.loadURL(url, {'extraHeaders': extraHeaders});
 
@@ -406,13 +414,13 @@ Electron.app.on('ready', function() {
             },
 
             getVisitedResponse: function (cb) {
-                Logger.debug('getVisitedResponse() => %s', pageVisited);
+                Logger.debug('getVisitedResponse() => %j', pageVisited);
 
                 cb(pageVisited);
             },
 
             getCurrentUrl: function (cb) {
-                Logger.debug('getCurrentUrl() => %s', currWindow.webContents.getURL());
+                Logger.debug('getCurrentUrl() => %j', currWindow.webContents.getURL());
 
                 cb(currWindow.webContents.getURL().toString());
             },
@@ -442,7 +450,7 @@ Electron.app.on('ready', function() {
             },
 
             setBasicAuth: function (user, pass, cb) {
-                Logger.debug('setBasicAuth(%s, %s)', user, pass);
+                Logger.debug('setBasicAuth(%j, %j)', user, pass);
 
                 auth.user = user;
                 auth.pass = pass;
@@ -455,7 +463,7 @@ Electron.app.on('ready', function() {
             },
 
             switchToWindow: function (name, cb) {
-                Logger.debug('switchToWindow(%s)', name);
+                Logger.debug('switchToWindow(%j)', name);
 
                 currWindow = name === null ? mainWindow : findWindowByName(name);
 
@@ -467,7 +475,7 @@ Electron.app.on('ready', function() {
             },
 
             setRequestHeader: function (name, value, cb) {
-                Logger.debug('setRequestHeader(%s, %s)', name, value);
+                Logger.debug('setRequestHeader(%j, %j)', name, value);
 
                 hdrs[name] = value;
 
@@ -483,7 +491,7 @@ Electron.app.on('ready', function() {
             },
 
             setCookie: function (name, value, cb) {
-                Logger.debug('setCookie(%s, %s)', name, value);
+                Logger.debug('setCookie(%j, %j)', name, value);
 
                 cookieResponse = null;
 
@@ -512,7 +520,7 @@ Electron.app.on('ready', function() {
             },
 
             getCookie: function (name, cb) {
-                Logger.debug('getCookie(%s)', name);
+                Logger.debug('getCookie(%j)', name);
 
                 cookieResponse = null;
                 currWindow.webContents.session.cookies.get(
@@ -621,7 +629,7 @@ Electron.app.on('ready', function() {
             },
 
             resizeWindow: function (width, height, name, cb) {
-                Logger.debug('resizeWindow(%s, %s, %s)', width, height, name);
+                Logger.debug('resizeWindow(%s, %s, %j)', width, height, name);
 
                 (name === null ? currWindow : findWindowByName(name)).setSize(width, height, false);
 
@@ -629,7 +637,7 @@ Electron.app.on('ready', function() {
             },
 
             maximizeWindow: function (name, cb) {
-                Logger.debug('maximizeWindow(%s)', name);
+                Logger.debug('maximizeWindow(%j)', name);
 
                 (name === null ? currWindow : findWindowByName(name)).maximize();
 
@@ -637,7 +645,7 @@ Electron.app.on('ready', function() {
             },
 
             attachFile: function (xpath, path, cb) {
-                Logger.debug('attachFile(%s, %s)', xpath, path);
+                Logger.debug('attachFile(%j, %j)', xpath, path);
 
                 attachFileResponse = null;
 
@@ -654,14 +662,26 @@ Electron.app.on('ready', function() {
                             nodeId: element.nodeId,
                             files: [path]
                         }, function (error) {
-                            if (!isEmptyObject(error)) {
+                            if (isEmptyObject(error)) {
+                                onDone().then(function () {
+                                    window.webContents
+                                        .executeJavaScript('Electron.syn.trigger(' + element.jsElementVarName + ', "change", {});')
+                                        .then(
+                                            function () {
+                                                Logger.info('File was attached to input field successfully.');
+                                                attachFileResponse = true;
+                                            },
+                                            function (error) {
+                                                Logger.error('Could trigger change event: %s', (error ? (error.stack || error) : '').toString());
+                                                attachFileResponse = {'error': (error ? (error.stack || error) : '').toString()};
+                                            }
+                                        );
+                                });
+                            } else {
                                 Logger.error('Could not attach file from RemoteDebug: %s', (error ? (error.stack || error) : '').toString());
                                 attachFileResponse = {'error': (error ? (error.stack || error) : '').toString()};
-                            } else {
-                                Logger.info('File was attached to input field successfully.');
-                                attachFileResponse = true;
+                                onDone();
                             }
-                            onDone();
                         });
                     },
                     function (error, onDone) {

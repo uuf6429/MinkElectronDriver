@@ -1,18 +1,11 @@
-(function(){
+(function () {
     var remote = require('electron').remote,
         setExecutionError = remote.getGlobal('setExecutionError'),
         setWindowUnloading = remote.getGlobal('setWindowUnloading'),
         setWindowIdName = remote.getGlobal('setWindowIdName'),
         setFileFromScript = remote.getGlobal('setFileFromScript'),
-        DELAY_SCRIPT_RESPONSE = remote.getGlobal('DELAY_SCRIPT_RESPONSE');
-
-    window.Electron = window.Electron || {};
-    window.Electron.syn = require('syn');
-    window.Electron.winId = remote.getCurrentWindow().id;
-    window.Electron.setFileFromScript = function (xpath, value) {
-        setFileFromScript(remote.getCurrentWindow().id, xpath, value);
-        return DELAY_SCRIPT_RESPONSE;
-    };
+        DELAY_SCRIPT_RESPONSE = remote.getGlobal('DELAY_SCRIPT_RESPONSE'),
+        electronWindow = remote.getCurrentWindow();
 
     window.onerror = function (error) {
         setExecutionError(error);
@@ -23,21 +16,27 @@
     window.onbeforeunload = function (error) {
         setWindowUnloading(true);
         if (oldOnUnload) oldOnUnload();
-        setWindowIdName(remote.getCurrentWindow().id, null, location.href);
+        setWindowIdName(electronWindow.id, null, location.href);
     };
 
     var oldWndName = window.name || remote.getGlobal('newWindowName');
     window.__defineSetter__("name", function (name) {
         oldWndName = name;
-        setWindowIdName(remote.getCurrentWindow().id, name, location.href);
+        setWindowIdName(electronWindow.id, name, location.href);
     });
     window.__defineGetter__("name", function () {
         return oldWndName;
     });
-    setWindowIdName(remote.getCurrentWindow().id, oldWndName, location.href);
+    setWindowIdName(electronWindow.id, oldWndName, location.href);
 
     window.Electron = {
         'syn': require('syn'),
+
+        'setFileFromScript': function (xpath, value) {
+            setFileFromScript(electronWindow.id, xpath, value);
+            return DELAY_SCRIPT_RESPONSE;
+        },
+
         // Thanks to Jason Farrell from Use All Five
         'isVisible': function isVisible(el, t, r, b, l, w, h) {
             var p = el.parentNode,
