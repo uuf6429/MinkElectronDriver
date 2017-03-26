@@ -212,34 +212,32 @@ Electron.app.on('ready', function() {
                 Electron.tmpOldElementId = ' + jsElementVarName + '.id;\
                 ' + jsElementVarName + '.id = ' + JSON.stringify(randomElementId) + ';'
             )
-            .then(
-                function () {
-                    currWindow.webContents.debugger.sendCommand('DOM.getDocument', {}, function (error, res) {
-                        if (!isEmptyObject(error)) {
-                            var msg = 'Could not get document from RemoteDebug: ' + (error ? (error.stack || error) : '').toString();
-                            onFailure(new Error(msg), restoreElementId);
-                            return;
-                        }
+            .then(function () {
+                currWindow.webContents.debugger.sendCommand('DOM.getDocument', {}, function (error, res) {
+                    if (!isEmptyObject(error)) {
+                        var msg = 'Could not get document from RemoteDebug: ' + (error ? (error.stack || error) : '').toString();
+                        onFailure(new Error(msg), restoreElementId);
+                        return;
+                    }
 
-                        currWindow.webContents.debugger.sendCommand('DOM.querySelector', {
-                            nodeId: res.root.nodeId,
-                            selector: '#' + randomElementId
-                        }, function (error, res) {
-                            if (isEmptyObject(error)) {
-                                res.jsElementVarName = jsElementVarName;
-                                onSuccess(res, restoreElementId);
-                            } else {
-                                var msg = 'Could not query document from RemoteDebug: ' + (error ? (error.stack || error) : '').toString();
-                                onFailure(new Error(msg), restoreElementId);
-                            }
-                        });
+                    currWindow.webContents.debugger.sendCommand('DOM.querySelector', {
+                        nodeId: res.root.nodeId,
+                        selector: '#' + randomElementId
+                    }, function (error, res) {
+                        if (isEmptyObject(error)) {
+                            res.jsElementVarName = jsElementVarName;
+                            onSuccess(res, restoreElementId);
+                        } else {
+                            var msg = 'Could not query document from RemoteDebug: ' + (error ? (error.stack || error) : '').toString();
+                            onFailure(new Error(msg), restoreElementId);
+                        }
                     });
-                },
-                function (error) {
-                    var msg = 'Could not query document from RemoteDebug: ' + (error ? (error.stack || error) : '').toString();
-                    onFailure(new Error(msg), function () {});
-                }
-            );
+                });
+            })
+            .catch(function (error) {
+                var msg = 'Could not query document from RemoteDebug: ' + (error ? (error.stack || error) : '').toString();
+                onFailure(new Error(msg), function () {});
+            });
     };
 
     global.setFileFromScript = function (windowId, xpath, value) {
@@ -255,20 +253,23 @@ Electron.app.on('ready', function() {
                     files: [value]
                 }, function (error) {
                     if (isEmptyObject(error)) {
-                        onDone().then(function(){
-                            window.webContents
-                                .executeJavaScript('Electron.syn.trigger(' + element.jsElementVarName + ', "change", {});')
-                                .then(
-                                    function () {
+                        onDone()
+                            .then(function(){
+                                window.webContents
+                                    .executeJavaScript('Electron.syn.trigger(' + element.jsElementVarName + ', "change", {});')
+                                    .then(function () {
                                         Logger.info('Value of file input field set successfully successfully.');
                                         executeResponse = {'result': true};
-                                    },
-                                    function (error) {
+                                    })
+                                    .catch(function (error) {
                                         Logger.error('Could trigger change event: %s', (error ? (error.stack || error) : '').toString());
                                         executeResponse = {'error': (error ? (error.stack || error) : '').toString()};
-                                    }
-                                );
-                        });
+                                    });
+                            })
+                            .catch(function (error) {
+                                Logger.error('Could perform RemoteDebug cleanup: %s', (error ? (error.stack || error) : '').toString());
+                                attachFileResponse = {'error': (error ? (error.stack || error) : '').toString()};
+                            });
                     } else {
                         Logger.error('Could not set file value from RemoteDebug: %s', (error ? (error.stack || error) : '').toString());
                         executeResponse = {'error': (error ? (error.stack || error) : '').toString()};
@@ -571,20 +572,18 @@ Electron.app.on('ready', function() {
 
                     currWindow.webContents
                         .executeJavaScript(script, true)
-                        .then(
-                            function (result) {
-                                if (result !== global.DELAY_SCRIPT_RESPONSE) {
-                                    Logger.debug('Evaluated script with result: %j', result);
-                                    executeResponse = {'result': result};
-                                } else {
-                                    Logger.debug('Evaluated script with delayed response.');
-                                }
-                            },
-                            function (error) {
-                                Logger.error('Script evaluation failed: %s', (error ? (error.stack || error) : '').toString());
-                                executeResponse = {'error': (error ? (error.stack || error) : '').toString()};
+                        .then(function (result) {
+                            if (result !== global.DELAY_SCRIPT_RESPONSE) {
+                                Logger.debug('Evaluated script with result: %j', result);
+                                executeResponse = {'result': result};
+                            } else {
+                                Logger.debug('Evaluated script with delayed response.');
                             }
-                        );
+                        })
+                        .catch(function (error) {
+                            Logger.error('Script evaluation failed: %s', (error ? (error.stack || error) : '').toString());
+                            executeResponse = {'error': (error ? (error.stack || error) : '').toString()};
+                        });
                 } catch (error) {
                     Logger.error('Script evaluation failed prematurely: %s', (error ? (error.stack || error) : '').toString());
                     executeResponse = {'error': (error ? (error.stack || error) : '').toString()};
@@ -663,20 +662,23 @@ Electron.app.on('ready', function() {
                             files: [path]
                         }, function (error) {
                             if (isEmptyObject(error)) {
-                                onDone().then(function () {
-                                    window.webContents
-                                        .executeJavaScript('Electron.syn.trigger(' + element.jsElementVarName + ', "change", {});')
-                                        .then(
-                                            function () {
+                                onDone()
+                                    .then(function () {
+                                        currWindow.webContents
+                                            .executeJavaScript('Electron.syn.trigger(' + element.jsElementVarName + ', "change", {});')
+                                            .then(function () {
                                                 Logger.info('File was attached to input field successfully.');
                                                 attachFileResponse = true;
-                                            },
-                                            function (error) {
+                                            })
+                                            .catch(function (error) {
                                                 Logger.error('Could trigger change event: %s', (error ? (error.stack || error) : '').toString());
                                                 attachFileResponse = {'error': (error ? (error.stack || error) : '').toString()};
-                                            }
-                                        );
-                                });
+                                            });
+                                    })
+                                    .catch(function (error) {
+                                        Logger.error('Could perform RemoteDebug cleanup: %s', (error ? (error.stack || error) : '').toString());
+                                        attachFileResponse = {'error': (error ? (error.stack || error) : '').toString()};
+                                    });
                             } else {
                                 Logger.error('Could not attach file from RemoteDebug: %s', (error ? (error.stack || error) : '').toString());
                                 attachFileResponse = {'error': (error ? (error.stack || error) : '').toString()};
