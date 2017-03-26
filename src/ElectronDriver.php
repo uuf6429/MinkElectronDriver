@@ -742,16 +742,11 @@ JS
     }
 
     /**
-     * Simulates a mouse over on the element.
-     *
-     * @param string $xpath
-     *
-     * @throws UnsupportedDriverActionException When operation not supported by the driver
-     * @throws DriverException                  When the operation cannot be done
+     * @inheritdoc
      */
     public function mouseOver($xpath)
     {
-        $this->callBaseMethod(__FUNCTION__, func_get_args()); // TODO: Implement mouseOver() method.
+        $this->synTrigger($xpath, 'mouseover');
     }
 
     /**
@@ -795,17 +790,20 @@ JS
     }
 
     /**
-     * Drag one element onto another.
-     *
-     * @param string $sourceXpath
-     * @param string $destinationXpath
-     *
-     * @throws UnsupportedDriverActionException When operation not supported by the driver
-     * @throws DriverException                  When the operation cannot be done
+     * @inheritdoc
      */
     public function dragTo($sourceXpath, $destinationXpath)
     {
-        $this->callBaseMethod(__FUNCTION__, func_get_args()); // TODO: Implement dragTo() method.
+        $this->evaluateExprWithArgs(
+            'setTimeout(function(){ Electron.syn.drag(sourceElement, {to: targetElement, duration: 10}); }, 1);',
+            [],
+            [
+                'sourceElement' => $this->scriptXPathEval($sourceXpath),
+                'targetElement' => $this->scriptXPathEval($destinationXpath),
+            ]
+        );
+        
+        usleep(16000); // 10ms duration + 1ms setTimeout + 5ms overhead
     }
 
     /**
@@ -1002,6 +1000,18 @@ JS
 
     /**
      * @param string $xpath
+     * @return string
+     */
+    protected function scriptXPathEval($xpath)
+    {
+        return sprintf(
+            'document.evaluate(%s, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue',
+            json_encode($xpath)
+        );
+    }
+
+    /**
+     * @param string $xpath
      * @param string $expr
      * @param array <string, mixed> $valueArgs
      * @param array <string, string> $exprArgs
@@ -1010,10 +1020,7 @@ JS
     protected function evaluateForElementByXPath($xpath, $expr, $valueArgs = [], $exprArgs = [])
     {
         // add expression that resolves to "element"
-        $exprArgs['element'] = sprintf(
-            'document.evaluate(%s, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue',
-            json_encode($xpath)
-        );
+        $exprArgs['element'] = $this->scriptXPathEval($xpath);
 
         return $this->evaluateExprWithArgs($expr, $valueArgs, $exprArgs);
     }
