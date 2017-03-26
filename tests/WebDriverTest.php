@@ -44,17 +44,17 @@ class WebDriverTest extends TestCase
 
     public function testNavigation()
     {
-        $this->driver->visit('http://bing.com/');
+        $this->driver->visit('https://bing.com/');
         $this->assertContains('bing.', $this->driver->getCurrentUrl());
 
-        $this->driver->visit('http://google.com/');
-        $this->assertContains('google.', $this->driver->getCurrentUrl());
+        $this->driver->visit('https://httpbin.org/status/200');
+        $this->assertContains('httpbin.org/status/200', $this->driver->getCurrentUrl());
 
         $this->driver->back();
         $this->assertContains('bing.', $this->driver->getCurrentUrl());
 
         $this->driver->forward();
-        $this->assertContains('google.', $this->driver->getCurrentUrl());
+        $this->assertContains('httpbin.org/status/200', $this->driver->getCurrentUrl());
     }
 
     public function testDriverHasStarted()
