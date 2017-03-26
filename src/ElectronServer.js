@@ -606,9 +606,23 @@ Electron.app.on('ready', function() {
                 Logger.debug('getScreenshot()');
 
                 screenshotResponse = null;
-                currWindow.capturePage(currWindow.getContentBounds(), function (image) {
-                    screenshotResponse = {'base64data': image.toPNG().toString('base64')};
-                });
+
+                var tryTakingScreenshot = function (tries) {
+                    currWindow.capturePage(currWindow.getContentBounds(), function (image) {
+                        var data = image.toPNG().toString('base64');
+
+                        if (data) {
+                            screenshotResponse = {'base64data': data};
+                        } else if (tries > 0) {
+                            Logger.warn('Failed to take screen shot, trying again (try %d).', tries);
+                            tryTakingScreenshot(tries - 1);
+                        } else {
+                            screenshotResponse = {'error': 'Gave up trying to take screen shot after several tries.'};
+                        }
+                    });
+                };
+
+                tryTakingScreenshot(5);
 
                 cb();
             },
