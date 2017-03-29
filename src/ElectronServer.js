@@ -347,7 +347,7 @@ Electron.app.on('ready', function() {
                 window.webContents.debugger.attach('1.2');
 
                 window.webContents.debugger.on('message', function (event, message, params) {
-                    if (captureResponse && message === 'Network.responseReceived') {
+                    if (captureResponse && message === 'Network.responseReceived' && params.type === 'Document') {
                         window.webContents.debugger.sendCommand(
                             'Network.getResponseBody',
                             {'requestId': params.requestId},

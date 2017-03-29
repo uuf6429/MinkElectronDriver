@@ -15,3 +15,5 @@ Electron is between 2 to 3 times faster than PhantomJS ([source](https://github.
 - Node.js and Electron (via npm)
 
 _More documentation coming soon..._
+
+[RemoteDebug documentation](https://chromedevtools.github.io/debugger-protocol-viewer/1-2/)

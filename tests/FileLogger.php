@@ -57,7 +57,7 @@ class FileLogger extends AbstractLogger
         $message = sprintf(
             '%s %s - %s' . PHP_EOL,
             $time->format('d-m-Y H:i:s.u'),
-            strtoupper($level),
+            $this->psrLevelToShortMap[$level],
             str_replace(
                 array_map(
                     function ($key) {
