@@ -64,6 +64,9 @@ const Electron = require('electron'),
         },
         error: function(){
             this.logFmt('error', arguments);
+        },
+        crit: function(){
+            this.logFmt('critical', arguments);
         }
     };
 
@@ -321,10 +324,10 @@ Electron.app.on('ready', function() {
                     pageVisited = true;
                 })
                 .on('crashed', function (event, killed) {
-                    Logger.error('Renderer process %s.', killed ? 'was killed' : 'has crashed');
+                    Logger.crit('Renderer process %s.', killed ? 'was killed' : 'has crashed');
                 })
                 .on('plugin-crashed', function (event, name, version) {
-                    Logger.error('Plugin %s version %s crashed.', name, version);
+                    Logger.crit('Plugin "%s" (version %s) crashed.', name, version);
                 })
             ;
 

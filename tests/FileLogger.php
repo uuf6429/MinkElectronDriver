@@ -3,6 +3,7 @@
 namespace Behat\Mink\Tests\Driver;
 
 use Psr\Log\AbstractLogger;
+use Psr\Log\LogLevel;
 
 class FileLogger extends AbstractLogger
 {
@@ -10,6 +11,20 @@ class FileLogger extends AbstractLogger
      * @var \SplFileObject
      */
     protected $file;
+
+    /**
+     * @var array<string, string>
+     */
+    protected $psrLevelToShortMap = [
+        LogLevel::EMERGENCY => 'EMER',
+        LogLevel::ALERT     => 'ALRT',
+        LogLevel::CRITICAL  => 'CRIT',
+        LogLevel::ERROR     => 'ERRR',
+        LogLevel::WARNING   => 'WARN',
+        LogLevel::NOTICE    => 'NOTE',
+        LogLevel::INFO      => 'INFO',
+        LogLevel::DEBUG     => 'DBUG',
+    ];
 
     /**
      * @param string $fileName
