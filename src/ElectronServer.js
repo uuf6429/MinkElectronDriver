@@ -618,7 +618,9 @@ Electron.app.on('ready', function() {
                             screenshotResponse = {'base64data': data};
                         } else if (tries > 0) {
                             Logger.warn('Failed to take screen shot, trying again (try %d).', tries);
-                            tryTakingScreenshot(tries - 1);
+                            setTimeout(function () {
+                                tryTakingScreenshot(tries - 1);
+                            }, 200);
                         } else {
                             screenshotResponse = {'error': 'Gave up trying to take screen shot after several tries.'};
                         }
