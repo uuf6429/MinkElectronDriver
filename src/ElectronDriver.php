@@ -290,7 +290,7 @@ class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
      */
     public function getStatusCode()
     {
-        return $this->sendAndWaitWithResult('getStatusCode');
+        return $this->waitForAsyncResult('getStatusCode');
     }
 
     /**
