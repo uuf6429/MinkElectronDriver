@@ -116,7 +116,6 @@ Electron.app.on('ready', function() {
         screenshotResponse = null,
         windowWillUnload = false,
         windowIdNameMap = {},
-        attachFileResponse = null,
         captureResponse = false,
         lastResponses = {};
 
@@ -246,6 +245,7 @@ Electron.app.on('ready', function() {
     global.setFileFromScript = function (windowId, xpath, value) {
         Logger.debug('setFileFromScript(%j, %j, %j)', windowId, xpath, value);
 
+        executeResponse = null;
         var window = BrowserWindow.fromId(parseInt(windowId));
         withElementByXpath(
             window,
@@ -271,7 +271,7 @@ Electron.app.on('ready', function() {
                             })
                             .catch(function (error) {
                                 Logger.error('Could perform RemoteDebug cleanup: %s', (error ? (error.stack || error) : '').toString());
-                                attachFileResponse = {'error': (error ? (error.stack || error) : '').toString()};
+                                executeResponse = {'error': (error ? (error.stack || error) : '').toString()};
                             });
                     } else {
                         Logger.error('Could not set file value from RemoteDebug: %s', (error ? (error.stack || error) : '').toString());
@@ -663,7 +663,7 @@ Electron.app.on('ready', function() {
             attachFile: function (xpath, path, cb) {
                 Logger.debug('attachFile(%j, %j)', xpath, path);
 
-                attachFileResponse = null;
+                executeResponse = null;
 
                 /* Unfortunately, electron doesn't expose an easy way to set a file input element's file, and we can't
                  * do it from plain JS due to security restrictions. The solution is a to use RemoteDebug API as
@@ -685,27 +685,27 @@ Electron.app.on('ready', function() {
                                             .executeJavaScript('Electron.syn.trigger(' + element.jsElementVarName + ', "change", {});')
                                             .then(function () {
                                                 Logger.info('File was attached to input field successfully.');
-                                                attachFileResponse = true;
+                                                executeResponse = true;
                                             })
                                             .catch(function (error) {
                                                 Logger.error('Could trigger change event: %s', (error ? (error.stack || error) : '').toString());
-                                                attachFileResponse = {'error': (error ? (error.stack || error) : '').toString()};
+                                                executeResponse = {'error': (error ? (error.stack || error) : '').toString()};
                                             });
                                     })
                                     .catch(function (error) {
                                         Logger.error('Could perform RemoteDebug cleanup: %s', (error ? (error.stack || error) : '').toString());
-                                        attachFileResponse = {'error': (error ? (error.stack || error) : '').toString()};
+                                        executeResponse = {'error': (error ? (error.stack || error) : '').toString()};
                                     });
                             } else {
                                 Logger.error('Could not attach file from RemoteDebug: %s', (error ? (error.stack || error) : '').toString());
-                                attachFileResponse = {'error': (error ? (error.stack || error) : '').toString()};
+                                executeResponse = {'error': (error ? (error.stack || error) : '').toString()};
                                 onDone();
                             }
                         });
                     },
                     function (error, onDone) {
                         Logger.error('Could not attach file: %s', (error ? (error.stack || error) : '').toString());
-                        attachFileResponse = {'error': (error ? (error.stack || error) : '').toString()};
+                        executeResponse = {'error': (error ? (error.stack || error) : '').toString()};
                         onDone();
                     }
                 );
@@ -714,9 +714,9 @@ Electron.app.on('ready', function() {
             },
 
             getAttachFileResponse: function (cb) {
-                Logger.debug('getAttachFileResponse() => %j', attachFileResponse);
+                Logger.debug('getAttachFileResponse() => %j', executeResponse);
 
-                cb(attachFileResponse);
+                cb(executeResponse);
             }
         },
         {
