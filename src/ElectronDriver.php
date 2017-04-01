@@ -687,8 +687,8 @@ JS
     public function click($xpath)
     {
         $pos = $this->getElementCenterPos($xpath);
-        $this->dispatchMouseEvent('mousePressed', $pos['x'], $pos['y'], null, null, 'left');
-        $this->dispatchMouseEvent('mouseReleased', $pos['x'], $pos['y'], null, null, 'left');
+        $this->dispatchMouseEvent('mousePressed', $pos['x'], $pos['y'], null, null, 'left', 1);
+        $this->dispatchMouseEvent('mouseReleased', $pos['x'], $pos['y'], null, null, 'left', 1);
     }
 
     /**
@@ -707,8 +707,8 @@ JS
     public function rightClick($xpath)
     {
         $pos = $this->getElementCenterPos($xpath);
-        $this->dispatchMouseEvent('mousePressed', $pos['x'], $pos['y'], null, null, 'right');
-        $this->dispatchMouseEvent('mouseReleased', $pos['x'], $pos['y'], null, null, 'right');
+        $this->dispatchMouseEvent('mousePressed', $pos['x'], $pos['y'], null, null, 'right', 1);
+        $this->dispatchMouseEvent('mouseReleased', $pos['x'], $pos['y'], null, null, 'right', 1);
     }
 
     /**
