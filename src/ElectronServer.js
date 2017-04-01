@@ -37,7 +37,8 @@ const Electron = require('electron'),
             'debug': 0,
             'info': 1,
             'warning': 2,
-            'error': 3
+            'error': 3,
+            'critical': 4
         },
         logFmt: function (level, fmtArgs, context) {
             if (Logger.LogLevel <= Logger.LevelMap[level]) {
@@ -141,6 +142,8 @@ Electron.app.on('ready', function() {
 
             pageVisited = null;
             captureResponse = true;
+        } else {
+            Logger.debug('Page unload flag cleared.');
         }
 
         windowWillUnload = value;
@@ -304,9 +307,7 @@ Electron.app.on('ready', function() {
                 })
                 .on('new-window', function (event, url, frameName, disposition, options) {
                     Logger.info('Creating window "%s" for url "%s".', frameName, url);
-                    windowWillUnload = true;
-                    pageVisited = null;
-                    captureResponse = true;
+                    global.setWindowUnloading(true);
                     global.newWindowName = frameName;
                     setupWindowOptions(options);
                 })
@@ -595,12 +596,12 @@ Electron.app.on('ready', function() {
                 cb();
             },
 
-            getEvaluateScriptResponse: function (cb) {
+            getExecutionResponse: function (cb) {
                 if (executeResponse) {
                     executeResponse['redirect'] = windowWillUnload;
                 }
 
-                Logger.debug('getEvaluateScriptResponse() => %j', executeResponse);
+                Logger.debug('getExecutionResponse() => %j', executeResponse);
 
                 cb(executeResponse);
             },
@@ -715,24 +716,20 @@ Electron.app.on('ready', function() {
                 cb();
             },
 
-            getAttachFileResponse: function (cb) {
-                Logger.debug('getAttachFileResponse() => %j', executeResponse);
-
-                cb(executeResponse);
-            },
-
             dispatchMouseEvent: function (params, cb) {
                 Logger.debug('dispatchMouseEvent(%j)', params);
+
+                executeResponse = null;
 
                 currWindow.webContents.debugger.sendCommand(
                     'Input.dispatchMouseEvent',
                     params,
                     function (error) {
                         if (isEmptyObject(error)) {
-                            // TODO set result?
+                            executeResponse = {};
                         } else {
                             Logger.error('Could not dispatch mouse event (%j): %s', params, (error ? (error.stack || error) : '').toString());
-                            // TODO set result?
+                            executeResponse = {'error': (error ? (error.stack || error) : '').toString()};
                         }
                     }
                 );

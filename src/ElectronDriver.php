@@ -717,12 +717,7 @@ JS
     public function attachFile($xpath, $path)
     {
         $this->sendAndWaitWithoutResult('attachFile', [$xpath, $path]);
-
-        $result = $this->waitForAsyncResult('getAttachFileResponse');
-
-        if (isset($result['error'])) {
-            throw new DriverException('Could not attach file: ' . $result['error']);
-        }
+        $this->handleExecutionResponse('Could not attach file: %s');
     }
 
     /**
@@ -820,15 +815,7 @@ JS
 
         $this->sendAndWaitWithoutResult('evaluateScript', [sprintf('(%s);', rtrim($script, "\r\n\t ;"))]);
 
-        $result = $this->waitForAsyncResult('getEvaluateScriptResponse');
-
-        if (isset($result['error'])) {
-            throw new DriverException('Could not evaluate script: ' . $result['error']);
-        }
-
-        if (isset($result['redirect']) && $result['redirect']) {
-            $this->waitForVisited();
-        }
+        $result = $this->handleExecutionResponse('Could not evaluate script: %s');
 
         return $result['result'];
     }
@@ -1075,6 +1062,9 @@ JS
      * @param null|float $timestamp
      * @param null|string $button
      * @param null|integer $clickCount
+
+     * @throws DriverException
+     *
      * @see https://chromedevtools.github.io/debugger-protocol-viewer/1-2/Input/#method-dispatchMouseEvent
      */
     protected function dispatchMouseEvent($type, $x, $y, $modifiers = null, $timestamp = null, $button = null, $clickCount = null)
@@ -1102,6 +1092,11 @@ JS
         }
 
         $this->sendAndWaitWithoutResult('dispatchMouseEvent', [$params]);
+
+        usleep(10000); // FIXME Unfortunately, couldn't find a way to immediately detect location change
+                       // One possible fix is to remove sleep from here and put it into click/dblclick/rightclick methods
+
+        $this->handleExecutionResponse('Could not dispatch mouse event: %s');
     }
 
     /**
@@ -1119,5 +1114,31 @@ JS
             })();
 JS
         );
+    }
+
+    /**
+     * @param string $errorMessageTpl
+     * @param boolean $allowRedirect
+     * @return mixed
+     * @throws DriverException
+     */
+    protected function handleExecutionResponse($errorMessageTpl, $allowRedirect = true)
+    {
+        $result = $this->waitForAsyncResult('getExecutionResponse');
+
+        if (isset($result['error'])) {
+            throw new DriverException(
+                sprintf(
+                    $errorMessageTpl ?: 'Could not dispatch mouse event: %s',
+                    $result['error']
+                )
+            );
+        }
+
+        if ($allowRedirect && isset($result['redirect']) && $result['redirect']) {
+            $this->waitForVisited();
+        }
+
+        return $result;
     }
 }
