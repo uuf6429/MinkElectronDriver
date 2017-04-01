@@ -226,7 +226,7 @@ class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
      */
     public function switchToIFrame($name = null)
     {
-        $this->callBaseMethod(__FUNCTION__, func_get_args()); // TODO: Implement switchToIFrame() method.
+        parent::switchToIFrame($name); // TODO: Implement switchToIFrame() method.
     }
 
     /**
@@ -686,7 +686,9 @@ JS
      */
     public function click($xpath)
     {
-        $this->evaluateForElementByXPath($xpath, 'element.click()');
+        $pos = $this->getElementCenterPos($xpath);
+        $this->dispatchMouseEvent('mousePressed', $pos['x'], $pos['y'], null, null, 'left');
+        $this->dispatchMouseEvent('mouseReleased', $pos['x'], $pos['y'], null, null, 'left');
     }
 
     /**
@@ -694,14 +696,9 @@ JS
      */
     public function doubleClick($xpath)
     {
-        $this->evaluateForElementByXPath($xpath, <<<'JS'
-            element.dispatchEvent(new MouseEvent('dblclick', {
-                'view': window,
-                'bubbles': true,
-                'cancelable': true
-            }))
-JS
-        );
+        $pos = $this->getElementCenterPos($xpath);
+        $this->dispatchMouseEvent('mousePressed', $pos['x'], $pos['y'], null, null, 'left', 2);
+        $this->dispatchMouseEvent('mouseReleased', $pos['x'], $pos['y'], null, null, 'left', 2);
     }
 
     /**
@@ -709,14 +706,9 @@ JS
      */
     public function rightClick($xpath)
     {
-        $this->evaluateForElementByXPath($xpath, <<<'JS'
-            element.dispatchEvent(new MouseEvent('contextmenu', {
-                'view': window,
-                'bubbles': true,
-                'cancelable': true
-            }))
-JS
-        );
+        $pos = $this->getElementCenterPos($xpath);
+        $this->dispatchMouseEvent('mousePressed', $pos['x'], $pos['y'], null, null, 'right');
+        $this->dispatchMouseEvent('mouseReleased', $pos['x'], $pos['y'], null, null, 'right');
     }
 
     /**
@@ -738,7 +730,7 @@ JS
      */
     public function isVisible($xpath)
     {
-        return $this->evaluateForElementByXPath($xpath, 'Electron.syn.isVisible(element)');
+        return $this->evaluateForElementByXPath($xpath, 'Electron.isVisible(element)');
     }
 
     /**
@@ -746,7 +738,8 @@ JS
      */
     public function mouseOver($xpath)
     {
-        $this->synTrigger($xpath, 'mouseover');
+        $pos = $this->getElementCenterPos($xpath);
+        $this->dispatchMouseEvent('mouseMoved', $pos['x'], $pos['y']);
     }
 
     /**
@@ -794,6 +787,7 @@ JS
      */
     public function dragTo($sourceXpath, $destinationXpath)
     {
+        // TODO use native mouse events
         $this->evaluateExprWithArgs(
             'setTimeout(function(){ Electron.syn.drag(sourceElement, {to: targetElement, duration: 10}); }, 1);',
             [],
@@ -1026,16 +1020,6 @@ JS
     }
 
     /**
-     * @todo To be removed; it's only useful during implementation!
-     */
-    protected function callBaseMethod($mtd, $args)
-    {
-        static $class;
-        if (!$class) $class = new \ReflectionClass(CoreDriver::class);
-        return $class->getMethod($mtd)->invokeArgs($this, $args);
-    }
-
-    /**
      * @param string $event
      * @param array|object $options
      * @param string $elementVarName
@@ -1081,5 +1065,59 @@ JS
         }
 
         return $options;
+    }
+
+    /**
+     * @param string $type
+     * @param integer $x
+     * @param integer $y
+     * @param null|int $modifiers
+     * @param null|float $timestamp
+     * @param null|string $button
+     * @param null|integer $clickCount
+     * @see https://chromedevtools.github.io/debugger-protocol-viewer/1-2/Input/#method-dispatchMouseEvent
+     */
+    protected function dispatchMouseEvent($type, $x, $y, $modifiers = null, $timestamp = null, $button = null, $clickCount = null)
+    {
+        $params = [
+            'type' => $type,
+            'x' => $x,
+            'y' => $y,
+        ];
+
+        if ($modifiers !== null) {
+            $params['modifiers'] = $modifiers;
+        }
+
+        if ($timestamp !== null) {
+            $params['timestamp'] = $timestamp;
+        }
+
+        if ($button !== null) {
+            $params['button'] = $button;
+        }
+
+        if ($clickCount !== null) {
+            $params['clickCount'] = $clickCount;
+        }
+
+        $this->sendAndWaitWithoutResult('dispatchMouseEvent', [$params]);
+    }
+
+    /**
+     * @param string $xpath
+     * @return array Array with 'x' and 'y' keys.
+     */
+    protected function getElementCenterPos($xpath)
+    {
+        return $this->evaluateForElementByXPath($xpath, <<<'JS'
+            (function(){
+                var rect = element.getBoundingClientRect(),
+                    x = Math.round(rect.left + (rect.width / 2)),
+                    y = Math.round(rect.top + (rect.height / 2));
+                return {'x': x, 'y': y};
+            })();
+JS
+        );
     }
 }

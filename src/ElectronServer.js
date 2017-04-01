@@ -719,6 +719,25 @@ Electron.app.on('ready', function() {
                 Logger.debug('getAttachFileResponse() => %j', executeResponse);
 
                 cb(executeResponse);
+            },
+
+            dispatchMouseEvent: function (params, cb) {
+                Logger.debug('dispatchMouseEvent(%j)', params);
+
+                currWindow.webContents.debugger.sendCommand(
+                    'Input.dispatchMouseEvent',
+                    params,
+                    function (error) {
+                        if (isEmptyObject(error)) {
+                            // TODO set result?
+                        } else {
+                            Logger.error('Could not dispatch mouse event (%j): %s', params, (error ? (error.stack || error) : '').toString());
+                            // TODO set result?
+                        }
+                    }
+                );
+
+                cb();
             }
         },
         {
