@@ -28,7 +28,21 @@ const Electron = require('electron'),
     Path = require('path'),
     DNode = require('dnode'),
     QueryString = require('querystring'),
-    Logger = require('./Logger.js');
+    Logger = require('./Logger.js'),
+    ResponseManager = {
+        responses: {},
+        create: function () {
+            var id = uuid.v1();
+            this.responses[id] = {payload: null, id: id, created: Date.now()};
+            return id;
+        },
+        get: function (id) {
+            return this.responses[id].payload;
+        },
+        set: function (id, payload) {
+            this.responses[id].payload = payload;
+        }
+    };
 
 var showWindow = process.argv[3] === 'show';
 Logger.LogLevel = process.argv[4] || Logger.WARNING;
