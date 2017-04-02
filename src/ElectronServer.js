@@ -27,52 +27,11 @@ const Electron = require('electron'),
     BrowserWindow = Electron.BrowserWindow,
     Path = require('path'),
     DNode = require('dnode'),
-    Util = require('util'),
     QueryString = require('querystring'),
-    // See PSR-3 LogLevel constants.
-    // TODO in the future, support switching log format (console|json)
-    Logger = {
-        LogLevel: 0,
-        LevelMap: {
-            'debug': 0,
-            'info': 1,
-            'warning': 2,
-            'error': 3,
-            'critical': 4
-        },
-        logFmt: function (level, fmtArgs, context) {
-            if (Logger.LogLevel <= Logger.LevelMap[level]) {
-                context = context || {};
-                context.srcTime = Date.now() / 1000;
-                process.stdout.write(JSON.stringify({
-                        'level': level,
-                        'message': Util.format.apply(null, fmtArgs),
-                        'context': context
-                    }) + '\n');
-            }
-        },
-        log: function(level, message, context) {
-            this.logFmt(level, [message], context);
-        },
-        debug: function(){
-            this.logFmt('debug', arguments);
-        },
-        info: function(){
-            this.logFmt('info', arguments);
-        },
-        warn: function(){
-            this.logFmt('warning', arguments);
-        },
-        error: function(){
-            this.logFmt('error', arguments);
-        },
-        crit: function(){
-            this.logFmt('critical', arguments);
-        }
-    };
+    Logger = require('./Logger.js');
 
 var showWindow = process.argv[3] === 'show';
-Logger.LogLevel = Logger.LevelMap[process.argv[4] || ''] || 0;
+Logger.LogLevel = process.argv[4] || Logger.WARNING;
 
 // Global exception handler
 process.on('uncaughtException', function (error) {
@@ -325,10 +284,10 @@ Electron.app.on('ready', function() {
                     pageVisited = true;
                 })
                 .on('crashed', function (event, killed) {
-                    Logger.crit('Renderer process %s.', killed ? 'was killed' : 'has crashed');
+                    Logger.critical('Renderer process %s.', killed ? 'was killed' : 'has crashed');
                 })
                 .on('plugin-crashed', function (event, name, version) {
-                    Logger.crit('Plugin "%s" (version %s) crashed.', name, version);
+                    Logger.critical('Plugin "%s" (version %s) crashed.', name, version);
                 })
             ;
 

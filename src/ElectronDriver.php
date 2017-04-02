@@ -40,16 +40,24 @@ class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
     protected $showElectron;
 
     /**
+     * @var string
+     */
+    protected $logLevel;
+
+    /**
      * @param Log\LoggerInterface $logger
      * @param bool $showElectron
+     * @param string $logLevel
      */
     public function __construct(
         Log\LoggerInterface $logger = null,
-        $showElectron = false
+        $showElectron = false,
+        $logLevel = Log\LogLevel::WARNING
     )
     {
         $this->setLogger($logger ?: new Log\NullLogger());
         $this->showElectron = $showElectron;
+        $this->logLevel = $logLevel;
     }
 
     /**
@@ -872,11 +880,12 @@ JS
             . DIRECTORY_SEPARATOR . 'electron';
 
         return sprintf(
-            '%s %s %s%s',
+            '%s %s %s %s %s',
             escapeshellarg($electronPath),
             escapeshellarg(__DIR__ . DIRECTORY_SEPARATOR . 'ElectronServer.js'),
             escapeshellarg($this->electronServerAddress),
-            $this->showElectron ? ' show' : ''
+            $this->showElectron ? 'show' : 'hide',
+            $this->logLevel
         );
     }
 
