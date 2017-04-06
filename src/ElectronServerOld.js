@@ -356,8 +356,6 @@ Electron.app.on('ready', function() {
     //noinspection JSUnusedGlobalSymbols
     var server = DNode(
         {
-            //region Old Code
-
             reset: function (cb) {
                 Logger.info('Resetting page (clearing headers, session and auth).');
 
@@ -710,24 +708,6 @@ Electron.app.on('ready', function() {
                 );
 
                 cb();
-            },
-
-            //endregion
-
-            getPayload: function(payload_id, cb) {
-                var response = {};
-
-                try {
-                    response.payload = ResponseManager.get(payload_id);
-                } catch (error) {
-                    response.error = (error ? (error.stack || error) : '').toString();
-                }
-
-                // TODO also add redirect?
-
-                Logger.debug('getPayload(%j) => %j', payload_id, response);
-
-                cb(response);
             }
         },
         {
