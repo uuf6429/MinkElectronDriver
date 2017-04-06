@@ -157,7 +157,7 @@ class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
      */
     public function reset()
     {
-        $this->sendAndWaitWithoutResult('reset');
+        $this->callRemoteProcedure('reset');
     }
 
 

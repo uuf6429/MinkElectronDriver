@@ -21,6 +21,7 @@
     "electron-rebuild": "^1.5.7",
     "syn": "^0.4.2",
     "temp": "~0.8",
+    "uuid": "https://registry.npmjs.org/uuid/-/uuid-3.0.1.tgz",
     "weak": "~1.0.1"
   },
   "scripts": {

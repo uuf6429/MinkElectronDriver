@@ -29,17 +29,38 @@ const Electron = require('electron'),
     DNode = require('dnode'),
     QueryString = require('querystring'),
     Logger = require('./Logger.js'),
+    UuidV4 = require('uuid/v4'),
     ResponseManager = {
         responses: {},
         create: function () {
-            var id = uuid.v1();
+            var id = UuidV4();
+
             this.responses[id] = {payload: null, id: id, created: Date.now()};
+
             return id;
         },
         get: function (id) {
-            return this.responses[id].payload;
+            if (this.responses[id] === undefined) {
+                throw new Error('Payload ' + id + ' does not exist (or has been consumed already).');
+            }
+
+            var data = this.responses[id].payload;
+
+            if (data !== null) {
+                delete this.responses[id];
+            }
+
+            return data;
         },
         set: function (id, payload) {
+            if (payload === null) {
+                throw new Error('Data for payload ' + id + ' cannot be set to null.');
+            }
+
+            if (this.responses[id].payload !== null) {
+                throw new Error('Data for payload ' + id + ' has already been set.');
+            }
+
             this.responses[id].payload = payload;
         }
     };
