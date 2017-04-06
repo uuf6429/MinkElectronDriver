@@ -15,13 +15,6 @@ class WebDriverTest extends TestCase
      */
     protected static $config;
 
-    public static function setUpBeforeClass()
-    {
-        parent::setUpBeforeClass();
-
-        self::$config = new ElectronConfig();
-    }
-
     /**
      * @var ElectronDriver
      */
@@ -31,7 +24,7 @@ class WebDriverTest extends TestCase
     {
         parent::setUp();
 
-        $this->driver = self::$config->createDriver();
+        $this->driver = ElectronConfig::getInstance()->createDriver();
         $this->driver->start();
     }
 
