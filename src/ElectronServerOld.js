@@ -29,38 +29,17 @@ const Electron = require('electron'),
     DNode = require('dnode'),
     QueryString = require('querystring'),
     Logger = require('./Logger.js'),
-    UuidV4 = require('uuid/v4'),
     ResponseManager = {
         responses: {},
         create: function () {
-            var id = UuidV4();
-
+            var id = uuid.v1();
             this.responses[id] = {payload: null, id: id, created: Date.now()};
-
             return id;
         },
         get: function (id) {
-            if (this.responses[id] === undefined) {
-                throw new Error('Payload ' + id + ' does not exist (or has been consumed already).');
-            }
-
-            var data = this.responses[id].payload;
-
-            if (data !== null) {
-                delete this.responses[id];
-            }
-
-            return data;
+            return this.responses[id].payload;
         },
         set: function (id, payload) {
-            if (payload === null) {
-                throw new Error('Data for payload ' + id + ' cannot be set to null.');
-            }
-
-            if (this.responses[id].payload !== null) {
-                throw new Error('Data for payload ' + id + ' has already been set.');
-            }
-
             this.responses[id].payload = payload;
         }
     };
@@ -391,34 +370,344 @@ Electron.app.on('ready', function() {
                 cb();
             },
 
-            visit: function (url, cb) {
-                Logger.info('Navigating to url: %s.', url);
+            clearVisitedResponse: function (cb) {
+                Logger.debug('clearVisitedResponse()');
 
-                hdrs = {};
-                auth = {'user': false, 'pass': ''};
-
-                BrowserWindow.getAllWindows().forEach(function (window) {
-                    window.webContents.session.clearStorageData();
-                    window.webContents.session.clearAuthCache({type: 'password'});
-                });
+                pageVisited = null;
+                captureResponse = true;
+                lastResponses[currWindow.id] = null;
 
                 cb();
             },
 
-            getPayload: function(payload_id, cb) {
-                var response = {};
+            visit: function (url, cb) {
+                var extraHeaders = '';
+                for (var key in hdrs) extraHeaders += key + ': ' + hdrs[key] + '\n';
 
-                try {
-                    response.payload = ResponseManager.get(payload_id);
-                } catch (error) {
-                    response.error = (error ? (error.stack || error) : '').toString();
+                Logger.debug('visit(%j) (extraHeaders: %s)', url, extraHeaders.replace(/\n/g, '\\n') || 'none');
+
+                currWindow.loadURL(url, {'extraHeaders': extraHeaders});
+
+                cb();
+            },
+
+            getVisitedResponse: function (cb) {
+                Logger.debug('getVisitedResponse() => %j', pageVisited);
+
+                cb(pageVisited);
+            },
+
+            getCurrentUrl: function (cb) {
+                Logger.debug('getCurrentUrl() => %j', currWindow.webContents.getURL());
+
+                cb(currWindow.webContents.getURL().toString());
+            },
+
+            reload: function (cb) {
+                Logger.debug('reload()');
+
+                currWindow.webContents.reload();
+
+                cb();
+            },
+
+            back: function (cb) {
+                Logger.debug('back()');
+
+                currWindow.webContents.goBack();
+
+                cb();
+            },
+
+            forward: function (cb) {
+                Logger.debug('forward()');
+
+                currWindow.webContents.goForward();
+
+                cb();
+            },
+
+            setBasicAuth: function (user, pass, cb) {
+                Logger.debug('setBasicAuth(%j, %j)', user, pass);
+
+                auth.user = user;
+                auth.pass = pass;
+
+                if (user === false) {
+                    currWindow.webContents.session.clearAuthCache({type: 'password'});
                 }
 
-                // TODO also add redirect?
+                cb();
+            },
 
-                Logger.debug('getPayload(%j) => %j', payload_id, response);
+            switchToWindow: function (name, cb) {
+                Logger.debug('switchToWindow(%j)', name);
 
-                cb(response);
+                currWindow = name === null ? mainWindow : findWindowByName(name);
+
+                cb();
+            },
+
+            switchToIFrame: function () {
+                // TODO
+            },
+
+            setRequestHeader: function (name, value, cb) {
+                Logger.debug('setRequestHeader(%j, %j)', name, value);
+
+                hdrs[name] = value;
+
+                cb();
+            },
+
+            getResponseHeaders: function (cb) {
+                var lastHeaders = (lastResponses[currWindow.id] || {}).headers || null;
+
+                Logger.debug('getResponseHeaders() (winId: %d) => %j', currWindow.id, lastHeaders);
+
+                cb(lastHeaders);
+            },
+
+            setCookie: function (name, value, cb) {
+                Logger.debug('setCookie(%j, %j)', name, value);
+
+                cookieResponse = null;
+
+                if (value === null) {
+                    currWindow.webContents.session.cookies.remove(
+                        currWindow.webContents.getURL(),
+                        name,
+                        function (error) {
+                            cookieResponse = {'set': !error, 'error': (error ? (error.stack || error) : '').toString()};
+                        }
+                    );
+                } else {
+                    currWindow.webContents.session.cookies.set(
+                        {
+                            'url': currWindow.webContents.getURL(),
+                            'name': name,
+                            'value': QueryString.escape(value)
+                        },
+                        function (error) {
+                            cookieResponse = {'set': !error, 'error': (error ? (error.stack || error) : '').toString()};
+                        }
+                    );
+                }
+
+                cb();
+            },
+
+            getCookie: function (name, cb) {
+                Logger.debug('getCookie(%j)', name);
+
+                cookieResponse = null;
+                currWindow.webContents.session.cookies.get(
+                    {
+                        'url': currWindow.webContents.getURL(),
+                        'name': name
+                    },
+                    function (error, cookies) {
+                        cookieResponse = {
+                            'get': cookies.length ? QueryString.unescape(cookies[0].value) : null,
+                            'error': (error ? (error.stack || error) : '').toString()
+                        };
+                    }
+                );
+
+                cb();
+            },
+
+            getCookieResponse: function (cb) {
+                Logger.debug('getCookieResponse() => %j', cookieResponse);
+
+                cb(cookieResponse);
+            },
+
+            getStatusCode: function (cb) {
+                var lastStatus = (lastResponses[currWindow.id] || {}).status || null;
+
+                Logger.debug('getStatusCode() (winId: %d) => %s', currWindow.id, lastStatus);
+
+                cb(lastStatus);
+            },
+
+            getContent: function (cb) {
+                var lastContent = {content: ((lastResponses[currWindow.id] || {}).content || null)};
+
+                Logger.debug('getContent() (winId: %d) => %j', currWindow.id, lastContent);
+
+                cb(lastContent);
+            },
+
+            evaluateScript: function (script, cb) {
+                Logger.debug('evaluateScript(%s) (winId: %d)', script, currWindow.id);
+
+                executeResponse = null;
+
+                try {
+                    global.setWindowUnloading(false);
+
+                    currWindow.webContents
+                        .executeJavaScript(script, true)
+                        .then(function (result) {
+                            if (result !== global.DELAY_SCRIPT_RESPONSE) {
+                                Logger.debug('Evaluated script with result: %j', result);
+                                executeResponse = {'result': result};
+                            } else {
+                                Logger.debug('Evaluated script with delayed response.');
+                            }
+                        })
+                        .catch(function (error) {
+                            Logger.error('Script evaluation failed: %s', (error ? (error.stack || error) : '').toString());
+                            executeResponse = {'error': (error ? (error.stack || error) : '').toString()};
+                        });
+                } catch (error) {
+                    Logger.error('Script evaluation failed prematurely: %s', (error ? (error.stack || error) : '').toString());
+                    executeResponse = {'error': (error ? (error.stack || error) : '').toString()};
+                }
+
+                cb();
+            },
+
+            getExecutionResponse: function (cb) {
+                if (executeResponse) {
+                    executeResponse['redirect'] = windowWillUnload;
+                }
+
+                Logger.debug('getExecutionResponse() => %j', executeResponse);
+
+                cb(executeResponse);
+            },
+
+            getScreenshot: function (cb) {
+                Logger.debug('getScreenshot()');
+
+                screenshotResponse = null;
+
+                var tryTakingScreenshot = function (tries) {
+                    currWindow.capturePage(currWindow.getContentBounds(), function (image) {
+                        var data = image.toPNG().toString('base64');
+
+                        if (data) {
+                            screenshotResponse = {'base64data': data};
+                        } else if (tries > 0) {
+                            Logger.warn('Failed to take screen shot, trying again (try %d).', tries);
+                            setTimeout(function () {
+                                tryTakingScreenshot(tries - 1);
+                            }, 200);
+                        } else {
+                            screenshotResponse = {'error': 'Gave up trying to take screen shot after several tries.'};
+                        }
+                    });
+                };
+
+                tryTakingScreenshot(5);
+
+                cb();
+            },
+
+            getScreenshotResponse: function (cb) {
+                Logger.debug('getScreenshotResponse() => %j', screenshotResponse);
+
+                cb(screenshotResponse);
+            },
+
+            getWindowNames: function (cb) {
+                var windowNames = Object.values(windowIdNameMap);
+
+                Logger.debug('getWindowNames() => %j', windowNames);
+
+                cb(windowNames);
+            },
+
+            resizeWindow: function (width, height, name, cb) {
+                Logger.debug('resizeWindow(%s, %s, %j)', width, height, name);
+
+                (name === null ? currWindow : findWindowByName(name)).setSize(width, height, false);
+
+                cb();
+            },
+
+            maximizeWindow: function (name, cb) {
+                Logger.debug('maximizeWindow(%j)', name);
+
+                (name === null ? currWindow : findWindowByName(name)).maximize();
+
+                cb();
+            },
+
+            attachFile: function (xpath, path, cb) {
+                Logger.debug('attachFile(%j, %j)', xpath, path);
+
+                executeResponse = null;
+
+                /* Unfortunately, electron doesn't expose an easy way to set a file input element's file, and we can't
+                 * do it from plain JS due to security restrictions. The solution is a to use RemoteDebug API as
+                 * described here: https://github.com/electron/electron/issues/749 (which requires attaching a debugger).
+                 */
+
+                withElementByXpath(
+                    currWindow,
+                    xpath,
+                    function (element, onDone) {
+                        currWindow.webContents.debugger.sendCommand('DOM.setFileInputFiles', {
+                            nodeId: element.nodeId,
+                            files: [path]
+                        }, function (error) {
+                            if (isEmptyObject(error)) {
+                                onDone()
+                                    .then(function () {
+                                        currWindow.webContents
+                                            .executeJavaScript('Electron.syn.trigger(' + element.jsElementVarName + ', "change", {});')
+                                            .then(function () {
+                                                Logger.info('File was attached to input field successfully.');
+                                                executeResponse = true;
+                                            })
+                                            .catch(function (error) {
+                                                Logger.error('Could trigger change event: %s', (error ? (error.stack || error) : '').toString());
+                                                executeResponse = {'error': (error ? (error.stack || error) : '').toString()};
+                                            });
+                                    })
+                                    .catch(function (error) {
+                                        Logger.error('Could perform RemoteDebug cleanup: %s', (error ? (error.stack || error) : '').toString());
+                                        executeResponse = {'error': (error ? (error.stack || error) : '').toString()};
+                                    });
+                            } else {
+                                Logger.error('Could not attach file from RemoteDebug: %s', (error ? (error.stack || error) : '').toString());
+                                executeResponse = {'error': (error ? (error.stack || error) : '').toString()};
+                                onDone();
+                            }
+                        });
+                    },
+                    function (error, onDone) {
+                        Logger.error('Could not attach file: %s', (error ? (error.stack || error) : '').toString());
+                        executeResponse = {'error': (error ? (error.stack || error) : '').toString()};
+                        onDone();
+                    }
+                );
+
+                cb();
+            },
+
+            dispatchMouseEvent: function (params, cb) {
+                Logger.debug('dispatchMouseEvent(%j)', params);
+
+                executeResponse = null;
+
+                currWindow.webContents.debugger.sendCommand(
+                    'Input.dispatchMouseEvent',
+                    params,
+                    function (error) {
+                        if (isEmptyObject(error)) {
+                            executeResponse = {};
+                        } else {
+                            Logger.error('Could not dispatch mouse event (%j): %s', params, (error ? (error.stack || error) : '').toString());
+                            executeResponse = {'error': (error ? (error.stack || error) : '').toString()};
+                        }
+                    }
+                );
+
+                cb();
             }
         },
         {
