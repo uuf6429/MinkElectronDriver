@@ -22,12 +22,12 @@ class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
     /**
      * @var string
      */
-    private $electronClientAddress = 'localhost:6666';
+    private $electronClientAddress = 'localhost:2200';
 
     /**
      * @var string
      */
-    private $electronServerAddress = '0.0.0.0:6666';
+    private $electronServerAddress = '0.0.0.0:2200';
 
     /**
      * @var Connection
@@ -59,6 +59,8 @@ class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
         $this->showElectron = $showElectron;
         $this->logLevel = $logLevel;
     }
+
+    // region Management Routines
 
     /**
      * @inheritdoc
@@ -152,6 +154,8 @@ class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
         }
     }
 
+    // endregion
+
     /**
      * @inheritdoc
      */
@@ -160,6 +164,13 @@ class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
         $this->callRemoteProcedure('reset');
     }
 
+    /**
+     * {@inheritdoc}
+     */
+    public function visit($url)
+    {
+        $this->callRemoteFunction('visit', [$url]);
+    }
 
 
 
@@ -296,7 +307,7 @@ class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
      * @param string $method Name of remote method.
      * @param array $arguments Arguments to send to remote method.
      * @param int $expectedResultCount Number of expected parameters from server (or -1 to disable check)
-     * @return mixed
+     * @return array
      * @throws DriverException
      */
     private function callRawRemote($method, $arguments = [], $expectedResultCount = -1)
@@ -316,7 +327,7 @@ class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
             );
         }
 
-        return $result[0];
+        return $result;
     }
 
     /**
@@ -326,9 +337,9 @@ class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
      */
     private function callRemoteFunction($method, $arguments = [])
     {
-        $pid = $this->callRawRemote($method, $arguments, 1);
+        $result = $this->callRawRemote($method, $arguments, 1);
 
-        return $this->waitForPayload($pid);
+        return $this->waitForPayload($result[0]);
     }
 
     /**
