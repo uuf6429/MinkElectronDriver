@@ -6,9 +6,31 @@ use Behat\Mink\Driver\ElectronDriver;
 
 class ElectronConfig extends AbstractConfig
 {
+    /**
+     * @var ElectronFileLogger
+     */
+    protected $logger;
+
+    /**
+     * @var ElectronConfig
+     */
+    protected static $instance;
+
+    protected function __construct()
+    {
+        $this->logger = new ElectronFileLogger(__DIR__ . '/../tmp/output.log');
+    }
+
+    /**
+     * @return ElectronConfig
+     */
     public static function getInstance()
     {
-        return new self();
+        if(!self::$instance){
+            self::$instance = new self();
+        }
+
+        return self::$instance;
     }
 
     /**
@@ -16,9 +38,7 @@ class ElectronConfig extends AbstractConfig
      */
     public function createDriver()
     {
-        $logger = new FileLogger(__DIR__ . '/../tmp/output.log');
-
-        return new ElectronDriver($logger, false, 'debug');
+        return new ElectronDriver($this->logger, false, 'debug');
     }
 
     /**
@@ -27,5 +47,13 @@ class ElectronConfig extends AbstractConfig
     protected function supportsCss()
     {
         return true;
+    }
+
+    /**
+     * @return ElectronFileLogger
+     */
+    public function getLogger()
+    {
+        return $this->logger;
     }
 }

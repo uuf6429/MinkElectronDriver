@@ -5,7 +5,7 @@ namespace Behat\Mink\Tests\Driver;
 use Psr\Log\AbstractLogger;
 use Psr\Log\LogLevel;
 
-class FileLogger extends AbstractLogger
+class ElectronFileLogger extends AbstractLogger
 {
     /**
      * @var \SplFileObject
@@ -17,14 +17,19 @@ class FileLogger extends AbstractLogger
      */
     protected $psrLevelToShortMap = [
         LogLevel::EMERGENCY => 'EMER',
-        LogLevel::ALERT     => 'ALRT',
-        LogLevel::CRITICAL  => 'CRIT',
-        LogLevel::ERROR     => 'ERRR',
-        LogLevel::WARNING   => 'WARN',
-        LogLevel::NOTICE    => 'NOTE',
-        LogLevel::INFO      => 'INFO',
-        LogLevel::DEBUG     => 'DBUG',
+        LogLevel::ALERT => 'ALRT',
+        LogLevel::CRITICAL => 'CRIT',
+        LogLevel::ERROR => 'ERRR',
+        LogLevel::WARNING => 'WARN',
+        LogLevel::NOTICE => 'NOTE',
+        LogLevel::INFO => 'INFO',
+        LogLevel::DEBUG => 'DBUG',
     ];
+
+    /**
+     * @var int
+     */
+    protected $indentation = 0;
 
     /**
      * @param string $fileName
@@ -45,27 +50,37 @@ class FileLogger extends AbstractLogger
      */
     public function log($level, $message, array $context = array())
     {
+        $indent = $this->indentation;
+
         if (isset($context['srcTime'])) {
-            $time = \DateTime::createFromFormat('U.u', (string)$context['srcTime']);
+            $time = \DateTime::createFromFormat('U.u', (string) $context['srcTime']);
             unset($context['srcTime']);
+        }
+
+        if (isset($context['logIndent'])) {
+            $indent += intval($context['logIndent']);
+            unset($context['logIndent']);
         }
 
         if (empty($time)) {
             $time = \DateTime::createFromFormat('U.u', implode('.', array_slice(gettimeofday(), 0, 2)));
         }
 
+        $msgIndent = str_repeat('  ', $indent);
+        $lineIndent = str_repeat(' ', 34) . $msgIndent;
+
         $message = sprintf(
-            '%s %s - %s' . PHP_EOL,
+            '%s %s - %s%s' . PHP_EOL,
             $time->format('d-m-Y H:i:s.u'),
             $this->psrLevelToShortMap[$level],
+            $msgIndent,
             str_replace(
                 array_map(
                     function ($key) {
-                        if (is_array($key)) die('wtf ' . print_r($key, true));
                         return "{{$key}}";
                     },
                     array_keys($context)
-                ),
+                ) + ["\n"],
                 array_map(
                     function ($val) {
                         return is_string($val)
@@ -75,7 +90,7 @@ class FileLogger extends AbstractLogger
                                 : var_export($val, true);
                     },
                     array_values($context)
-                ),
+                ) + ["\n$lineIndent"],
                 $message
             )
         );
@@ -90,5 +105,15 @@ class FileLogger extends AbstractLogger
                 $ex
             );
         }
+    }
+
+    public function indent()
+    {
+        $this->indentation++;
+    }
+
+    public function outdent()
+    {
+        $this->indentation--;
     }
 }

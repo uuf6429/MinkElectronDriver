@@ -17,4 +17,8 @@
             <directory>./src</directory>
         </whitelist>
     </filter>
+
+    <listeners>
+        <listener class="Behat\Mink\Tests\Driver\ElectronTestListener"/>
+    </listeners>
 </phpunit>

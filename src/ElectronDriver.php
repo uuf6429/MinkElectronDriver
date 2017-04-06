@@ -135,6 +135,7 @@ class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
     {
         return $this->electronProcess
             && $this->electronProcess->isStarted()
+            && $this->dnodeClient
             /*&& !$this->dnodeClient->isClosed()*/
         ;
     }
@@ -873,6 +874,14 @@ JS
     }
 
     /**
+     * This will cause PHP to receive & process any output from server process.
+     */
+    protected function flushServerOutput()
+    {
+        $this->electronProcess->getOutput();
+    }
+
+    /**
      * @return string
      */
     protected function buildServerCmd()
@@ -906,6 +915,7 @@ JS
         }
 
         $result = $this->dnodeClient->call($mtd, $args);
+        $this->flushServerOutput();
 
         if (count($result) !== 1) {
             throw new DriverException(
@@ -934,6 +944,7 @@ JS
         }
 
         $result = $this->dnodeClient->call($mtd, $args);
+        $this->flushServerOutput();
 
         if (count($result) !== 0) {
             throw new DriverException(
