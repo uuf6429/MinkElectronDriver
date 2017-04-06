@@ -41,3 +41,4 @@ script:
 
 after_script:
   - bash <(curl -s https://codecov.io/bash)
+  - cat tmp/output.log
