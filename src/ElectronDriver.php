@@ -92,13 +92,13 @@ class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
 
             $address = [];
             if (!preg_match('/(.*):(\d+)/', $this->electronClientAddress, $address)) {
-                throw new DriverException('Could not parse the supplied address, expected "host:port".');
+                throw new \InvalidArgumentException('Could not parse the supplied address, expected "host:port".');
             }
 
             $maxTries = 10;
             for ($currTry = 1; $currTry <= $maxTries; $currTry++) {
                 if (!$this->electronProcess->isRunning()) {
-                    throw new DriverException(
+                    throw new \RuntimeException(
                         sprintf(
                             'Electron server process quit unexpectedly (exit Code: %d).',
                             $this->electronProcess->getExitCode()
@@ -112,7 +112,7 @@ class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
                 } catch (IOException $ex) {
                     if ($currTry == $maxTries) {
                         $exitCode = $this->electronProcess->stop();
-                        throw new DriverException(
+                        throw new \RuntimeException(
                             sprintf(
                                 'Gave up connecting to electron server after %d tries (exit Code: %d).',
                                 $currTry,
@@ -145,8 +145,12 @@ class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
     public function stop()
     {
         try {
-            @$this->dnodeClient->close();
-            $this->electronProcess->stop();
+            if ($this->dnodeClient) {
+                @$this->dnodeClient->close();
+            }
+            if ($this->electronProcess) {
+                $this->electronProcess->stop();
+            }
         } catch (\Exception $ex) {
             throw new DriverException('Error while stopping: ' . $ex->getMessage(), $ex->getCode(), $ex);
         }
@@ -897,6 +901,10 @@ JS
      */
     protected function sendAndWaitWithResult($mtd, $args = [])
     {
+        if (!$this->dnodeClient) {
+            throw new DriverException('DNode client is not connected to ElectronServer.');
+        }
+
         $result = $this->dnodeClient->call($mtd, $args);
 
         if (count($result) !== 1) {
@@ -921,6 +929,10 @@ JS
      */
     protected function sendAndWaitWithoutResult($mtd, $args = [])
     {
+        if (!$this->dnodeClient) {
+            throw new DriverException('DNode client is not connected to ElectronServer.');
+        }
+
         $result = $this->dnodeClient->call($mtd, $args);
 
         if (count($result) !== 0) {
