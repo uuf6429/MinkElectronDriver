@@ -20,6 +20,11 @@ class WebDriverTest extends TestCase
      */
     protected $driver;
 
+    public static function setUpBeforeClass()
+    {
+        self::markTestSkipped('Temporarily skipped custom tests.');
+    }
+
     public function setUp()
     {
         parent::setUp();
@@ -30,7 +35,9 @@ class WebDriverTest extends TestCase
 
     public function tearDown()
     {
-        $this->driver->stop();
+        if ($this->driver) {
+            $this->driver->stop();
+        }
 
         parent::tearDown();
     }
