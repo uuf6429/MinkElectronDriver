@@ -53,7 +53,7 @@ class ElectronFileLogger extends AbstractLogger
         $indent = $this->indentation;
 
         if (isset($context['srcTime'])) {
-            $time = \DateTime::createFromFormat('U.u', (string) $context['srcTime']);
+            $time = explode('.', (string) $context['srcTime']);
             unset($context['srcTime']);
         }
 
@@ -62,16 +62,17 @@ class ElectronFileLogger extends AbstractLogger
             unset($context['logIndent']);
         }
 
-        if (empty($time)) {
-            $time = \DateTime::createFromFormat('U.u', implode('.', array_slice(gettimeofday(), 0, 2)));
+        if (empty($time) || count($time) !== 2) {
+            $time = array_values(array_slice(gettimeofday(), 0, 2));
         }
 
+        $time = sprintf('%10s.%-06.6s', $time[0], $time[1]);
         $msgIndent = str_repeat('  ', $indent);
-        $lineIndent = str_repeat(' ', 34) . $msgIndent;
+        $lineIndent = str_repeat(' ', strlen($time) + 8) . $msgIndent;
 
         $message = sprintf(
             '%s %s - %s%s' . PHP_EOL,
-            $time->format('d-m-Y H:i:s.u'),
+            $time,
             $this->psrLevelToShortMap[$level],
             $msgIndent,
             str_replace(
