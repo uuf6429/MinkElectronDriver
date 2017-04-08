@@ -8,7 +8,6 @@ use DnodeSyncClient\Connection;
 use DnodeSyncClient\IOException;
 use Psr\Log;
 use Symfony\Component\Process\Process;
-use DnodeSyncClient\Dnode;
 
 class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
 {
@@ -22,12 +21,17 @@ class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
     /**
      * @var string
      */
-    protected $electronClientAddress = 'localhost:6666';
+    protected $electronClientAddress;
 
     /**
      * @var string
      */
-    protected $electronServerAddress = '0.0.0.0:6666';
+    protected $electronServerAddress;
+
+    /**
+     * @var boolean
+     */
+    protected $autoStartServer;
 
     /**
      * @var Connection
@@ -45,19 +49,34 @@ class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
     protected $logLevel;
 
     /**
-     * @param Log\LoggerInterface $logger
-     * @param bool $showElectron
-     * @param string $logLevel
+     * @param Log\LoggerInterface|null $logger Logger object (use PSR NullLogger or null to disable logging).
+     * @param bool $showElectron True to show electron window (also enables web dev tools), false otherwise.
+     * @param string $logLevel A value from PSR LogLevel constants (defaults to LogLevel::WARNING).
+     * @param string|null $serverAddress Address where ElectronServer will listen to (defaults to local unix socket or named pipes).
+     * @param string|null $clientAddress Address where ElectronDriver will connect to (defaults to local unix socket or named pipes).
+     * @param boolean $autoStartServer If true, starts ElectronServer automatically (defaults to true).
      */
     public function __construct(
         Log\LoggerInterface $logger = null,
         $showElectron = false,
-        $logLevel = Log\LogLevel::WARNING
+        $logLevel = Log\LogLevel::WARNING,
+        $serverAddress = null,
+        $clientAddress = null,
+        $autoStartServer = true
     )
     {
+        $sid = uniqid();
+        $isWin = DIRECTORY_SEPARATOR === '\\';
+
         $this->setLogger($logger ?: new Log\NullLogger());
         $this->showElectron = $showElectron;
         $this->logLevel = $logLevel;
+
+        // on Windows we fall back to regular network sockets since named pipes (eg: "\\\\.\\pipe\\med$sid") do not seem to work :(
+        $this->electronServerAddress = $serverAddress ?: ($isWin ? '0.0.0.0:2200' : "/tmp/med$sid.sock");
+        $this->electronClientAddress = $clientAddress ?: ($isWin ? 'tcp://127.0.0.1:2200' : "unix:///tmp/med$sid.sock");
+
+        $this->autoStartServer = $autoStartServer;
     }
 
     /**
@@ -67,37 +86,34 @@ class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
     {
         try {
             // TODO add more config options (eg; node path, env vars, args, etc)
-            $this->electronProcess = new Process($this->buildServerCmd(), dirname(__DIR__));
-            $this->electronProcess->setTimeout(null);
+            if ($this->autoStartServer) {
+                $this->electronProcess = new Process($this->buildServerCmd(), dirname(__DIR__));
+                $this->electronProcess->setTimeout(null);
 
-            if ($this->logger instanceof Log\NullLogger) {
-                $this->electronProcess->disableOutput();
-            }
+                if ($this->logger instanceof Log\NullLogger) {
+                    $this->electronProcess->disableOutput();
+                }
 
-            $this->electronProcess->start(function ($type, $output) {
-                array_map(function ($line) use ($type) {
-                    if (trim($line)) {
-                        if (is_array($record = @json_decode($line, true))
-                            && isset($record['level'])
-                            && isset($record['message'])
-                            && isset($record['context'])
-                        ) {
-                            $this->logger->log($record['level'], $record['message'], (array)$record['context'] ?: []);
-                        } else {
-                            $this->logger->alert('Unexpected Electron server output line {output}.', ['stdio' => $type, 'output' => $line]);
+                $this->electronProcess->start(function ($type, $output) {
+                    array_map(function ($line) use ($type) {
+                        if (trim($line)) {
+                            if (is_array($record = @json_decode($line, true))
+                                && isset($record['level'])
+                                && isset($record['message'])
+                                && isset($record['context'])
+                            ) {
+                                $this->logger->log($record['level'], $record['message'], (array)$record['context'] ?: []);
+                            } else {
+                                $this->logger->alert('Unexpected Electron server output line {output}.', ['stdio' => $type, 'output' => $line]);
+                            }
                         }
-                    }
-                }, explode("\n", $output));
-            });
-
-            $address = [];
-            if (!preg_match('/(.*):(\d+)/', $this->electronClientAddress, $address)) {
-                throw new \InvalidArgumentException('Could not parse the supplied address, expected "host:port".');
+                    }, explode("\n", $output));
+                });
             }
 
             $maxTries = 10;
             for ($currTry = 1; $currTry <= $maxTries; $currTry++) {
-                if (!$this->electronProcess->isRunning()) {
+                if ($this->electronProcess && !$this->electronProcess->isRunning()) {
                     throw new \RuntimeException(
                         sprintf(
                             'Electron server process quit unexpectedly (exit Code: %d).',
@@ -107,18 +123,22 @@ class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
                 }
 
                 try {
-                    $this->dnodeClient = (new Dnode())->connect($address[1], $address[2]);
+                    $error = $errorMessage = null;
+                    $stream = @stream_socket_client($this->electronClientAddress, $error, $errorMessage);
+
+                    if (!$stream) {
+                        throw new IOException("Can't create socket to $this->electronClientAddress. Error: $error $errorMessage");
+                    }
+
+                    $this->dnodeClient = new Connection($stream);
                     break;
                 } catch (IOException $ex) {
                     if ($currTry == $maxTries) {
-                        $exitCode = $this->electronProcess->stop();
-                        throw new \RuntimeException(
-                            sprintf(
-                                'Gave up connecting to electron server after %d tries (exit Code: %d).',
-                                $currTry,
-                                $exitCode
-                            ), 0, $ex
-                        );
+                        if ($this->electronProcess && $this->electronProcess->isRunning()) {
+                            $this->electronProcess->stop();
+                        }
+
+                        throw new \RuntimeException("Gave up connecting to electron server after $maxTries tries:\n$ex", 0, $ex);
                     }
                     usleep(500000);
                 }
@@ -133,11 +153,9 @@ class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
      */
     public function isStarted()
     {
-        return $this->electronProcess
-            && $this->electronProcess->isStarted()
-            && $this->dnodeClient
-            /*&& !$this->dnodeClient->isClosed()*/
-        ;
+        $serverRunning = !$this->autoStartServer || ($this->electronProcess && $this->electronProcess->isStarted());
+
+        return $serverRunning && $this->dnodeClient /*&& !$this->dnodeClient->isClosed()*/;
     }
 
     /**
@@ -148,9 +166,11 @@ class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
         try {
             if ($this->dnodeClient) {
                 @$this->dnodeClient->close();
+                $this->dnodeClient = null;
             }
             if ($this->electronProcess) {
                 $this->electronProcess->stop();
+                $this->electronProcess = null;
             }
         } catch (\Exception $ex) {
             throw new DriverException('Error while stopping: ' . $ex->getMessage(), $ex->getCode(), $ex);
@@ -878,7 +898,9 @@ JS
      */
     protected function flushServerOutput()
     {
-        $this->electronProcess->getOutput();
+        if ($this->electronProcess) {
+            $this->electronProcess->getOutput();
+        }
     }
 
     /**

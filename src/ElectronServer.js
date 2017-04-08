@@ -701,7 +701,17 @@ Electron.app.on('ready', function() {
         }
     );
 
-    var address = /(.*):(\d+)/.exec(process.argv[2]);
-    if (!address) throw new Error('Could not parse the supplied address, expected "host:port".');
-    server.listen(address[1], parseInt(address[2]));
+    var params = /(.*):(\d+)/.exec(process.argv[2]);
+    if (params) {
+        params = {
+            host: params[1],
+            port: params[2]
+        };
+    } else {
+        params = {
+            path: process.argv[2]
+        };
+    }
+
+    server.listen(params);
 });
