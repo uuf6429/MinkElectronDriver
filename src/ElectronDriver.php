@@ -65,17 +65,11 @@ class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
         $autoStartServer = true
     )
     {
-        $sid = uniqid();
-        $isWin = DIRECTORY_SEPARATOR === '\\';
-
         $this->setLogger($logger ?: new Log\NullLogger());
         $this->showElectron = $showElectron;
         $this->logLevel = $logLevel;
-
-        // on Windows we fall back to regular network sockets since named pipes (eg: "\\\\.\\pipe\\med$sid") do not seem to work :(
-        $this->electronServerAddress = $serverAddress ?: ($isWin ? '0.0.0.0:2200' : "/tmp/med$sid.sock");
-        $this->electronClientAddress = $clientAddress ?: ($isWin ? 'tcp://127.0.0.1:2200' : "unix:///tmp/med$sid.sock");
-
+        $this->electronServerAddress = $serverAddress;
+        $this->electronClientAddress = $clientAddress;
         $this->autoStartServer = $autoStartServer;
     }
 
@@ -86,8 +80,10 @@ class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
     {
         try {
             // TODO add more config options (eg; node path, env vars, args, etc)
+            list($clientAddress, $serverAddress) = $this->buildClientServerAddress();
+
             if ($this->autoStartServer) {
-                $this->electronProcess = new Process($this->buildServerCmd(), dirname(__DIR__));
+                $this->electronProcess = new Process($this->buildServerCmd($serverAddress), dirname(__DIR__));
                 $this->electronProcess->setTimeout(null);
 
                 if ($this->logger instanceof Log\NullLogger) {
@@ -124,10 +120,10 @@ class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
 
                 try {
                     $error = $errorMessage = null;
-                    $stream = @stream_socket_client($this->electronClientAddress, $error, $errorMessage);
+                    $stream = @stream_socket_client($clientAddress, $error, $errorMessage);
 
                     if (!$stream) {
-                        throw new IOException("Can't create socket to $this->electronClientAddress. Error: $error $errorMessage");
+                        throw new IOException("Can't create socket to $clientAddress. Error: $error $errorMessage");
                     }
 
                     $this->dnodeClient = new Connection($stream);
@@ -701,9 +697,10 @@ class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
     }
 
     /**
+     * @param string $serverAddress
      * @return string
      */
-    protected function buildServerCmd()
+    protected function buildServerCmd($serverAddress)
     {
         $electronPath = __DIR__
             . DIRECTORY_SEPARATOR . '..'
@@ -715,10 +712,33 @@ class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
             '%s %s %s %s %s',
             escapeshellarg($electronPath),
             escapeshellarg(__DIR__ . DIRECTORY_SEPARATOR . 'ElectronServer.js'),
-            escapeshellarg($this->electronServerAddress),
+            escapeshellarg($serverAddress),
             $this->showElectron ? 'show' : 'hide',
             $this->logLevel
         );
+    }
+
+    /**
+     * @return array Returns an array of two strings, with client and server address respectively.
+     */
+    protected function buildClientServerAddress()
+    {
+        if (DIRECTORY_SEPARATOR === '\\') {
+            // on Windows we fall back to regular network sockets since named pipes (eg: "\\\\.\\pipe\\med$sid") do not seem to work :(
+            $GLOBALS['med_port'] = isset($GLOBALS['med_port']) ? $GLOBALS['med_port'] + 1 : 2200;
+
+            return [
+                $this->electronClientAddress ?: "tcp://127.0.0.1:{$GLOBALS['med_port']}",
+                $this->electronServerAddress ?: "0.0.0.0:{$GLOBALS['med_port']}",
+            ];
+        } else {
+            $sid = uniqid();
+
+            return [
+                $this->electronClientAddress ?: "unix:///tmp/med$sid.sock",
+                $this->electronServerAddress ?: "/tmp/med$sid.sock",
+            ];
+        }
     }
 
     /**
