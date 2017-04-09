@@ -1,4 +1,4 @@
-if (process.argv.length < 3
+if (process.argv.length < 4
     || process.argv.length > 5
     || !process.versions['electron']
 ) {
@@ -9,14 +9,14 @@ if (process.argv.length < 3
         NL = "\n"
     ;
 
-    process.stdout.write(RED + 'Command called incorrectly.' + RST + NL);
+    process.stdout.write(RED + 'Invalid invocation or wrong amount of arguments.' + RST + NL);
     process.stdout.write(NL);
     process.stdout.write(YEL + 'Usage:' + RST + NL);
-    process.stdout.write('  electron ElectronServer.js <host:port> [show|hide] [log level]' + NL);
+    process.stdout.write('  electron ElectronServer.js \74host:port\76 \74show|hide\76 [log level]' + NL);
     process.stdout.write(NL);
     process.stdout.write(YEL + 'Parameters:' + RST + NL);
-    process.stdout.write('  ' + GRN + '<host:port>' + RST + '   (Required) Specifies the IP / port the server should listen on.' + NL);
-    process.stdout.write('  ' + GRN + '[show|hide]' + RST + '   Show or hide Electron window (default is hide).' + NL);
+    process.stdout.write('  ' + GRN + '\74host:port\76' + RST + '   (Required) Specifies the IP / port the server should listen on.' + NL);
+    process.stdout.write('  ' + GRN + '\74show|hide\76' + RST + '   (Required) Show or hide Electron window.' + NL);
     process.stdout.write('  ' + GRN + '[log level]' + RST + '   Sets logging verbosity (default is "debug").' + NL);
     process.stdout.write('                See PSR-3 LogLevel constants for available values.' + NL);
 
@@ -31,7 +31,7 @@ const Electron = require('electron'),
     Logger = require('./Logger.js');
 
 var showWindow = process.argv[3] === 'show';
-Logger.LogLevel = process.argv[4] || Logger.WARNING;
+Logger.LogLevel = process.argv[4] || Logger.DEBUG;
 
 // Global exception handler
 process.on('uncaughtException', function (error) {
@@ -204,6 +204,12 @@ Electron.app.on('ready', function() {
             });
     };
 
+    /**
+     * @param {int} windowId
+     * @param {string} xpath
+     * @param {string} value
+     * @todo This is a potential security threat. Fix by allowing only registered file paths to be uploaded.
+     */
     global.setFileFromScript = function (windowId, xpath, value) {
         Logger.debug('setFileFromScript(%j, %j, %j)', windowId, xpath, value);
 

@@ -452,38 +452,7 @@ class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
      */
     public function getValue($xpath)
     {
-        return $this->evaluateForElementByXPath($xpath, <<<'JS'
-            (function () {
-                var i;
-                switch (true) {
-                    case element.tagName === 'SELECT' && element.multiple:
-                        var selected = [];
-                        for (i = 0; i < element.options.length; i++) {
-                            if (element.options[i].selected) {
-                                selected.push(element.options[i].value);
-                            }
-                        }
-                        return selected;
-                    case element.tagName === 'INPUT' && element.type === 'checkbox':
-                        return element.checked ? element.value : null;
-                    case element.tagName === 'INPUT' && element.type === 'radio':
-                        var name = element.getAttribute('name');
-                        if (name) {
-                            var radioButtons = window.document.getElementsByName(name);
-                            for (i = 0; i < radioButtons.length; i++) {
-                                var radioButton = radioButtons.item(i);
-                                if (radioButton.form === element.form && radioButton.checked) {
-                                    return radioButton.value;
-                                }
-                            }
-                        }
-                        return null;
-                    default:
-                        return element.value;
-                }
-            })();
-JS
-        );
+        return $this->evaluateForElementByXPath($xpath, 'Electron.getValue(element)');
     }
 
     /**
@@ -491,45 +460,9 @@ JS
      */
     public function setValue($xpath, $value)
     {
-        // TODO See also: https://github.com/segmentio/nightmare/blob/5ee597175861023cd23ccc5421f4fe3e00e54159/lib/runner.js#L369
-        $this->evaluateForElementByXPath($xpath, <<<JS
-            (function () {
-                var i;
-                switch (true) {
-                    case element.tagName === 'SELECT':
-                        if (value && value.constructor.name === 'Array') {
-                            {$this->scriptDeselectAllOptions()}
-                            var oldValue = value;
-                            for (var n = 0; n < oldValue.length; n++) {
-                                value = oldValue[n];
-                                multiple = true;
-                                {$this->scriptSelectOptionOnElement()}
-                            }
-                        } else {
-                            {$this->scriptSelectOptionOnElement()}
-                        }
-                        return;
-                        
-                    case element.tagName === 'INPUT' && element.type === 'checkbox':
-                        if (element.checked === !value) element.click();
-                        return;
-                        
-                    case element.tagName === 'INPUT' && element.type === 'radio':
-                        {$this->scriptSelectRadioValue()}
-                        return;
-                        
-                    case element.tagName === 'INPUT' && element.type === 'file':
-                        return Electron.setFileFromScript(xpath, value);
-                        
-                    default:
-                        element.value = value;
-                        break;
-                }
-
-                {$this->scriptSynTrigger('change')};
-            })();
-JS
-            ,
+        $this->evaluateForElementByXPath(
+            $xpath,
+            'Electron.setValue(xpath, element, value)',
             ['value' => $value, 'xpath' => $xpath]
         );
     }
@@ -539,15 +472,7 @@ JS
      */
     public function check($xpath)
     {
-        $this->evaluateForElementByXPath($xpath, <<<'JS'
-            (function () {
-                if (!element || !((element.type === 'checkbox') || (element.type === 'radio')))
-                    throw new Error('Element is not a valid checkbox or radio button.');
-                
-                if (element.checked === false) element.click();
-            })();
-JS
-        );
+        $this->evaluateForElementByXPath($xpath, 'Electron.setChecked(element, true)');
     }
 
     /**
@@ -555,15 +480,7 @@ JS
      */
     public function uncheck($xpath)
     {
-        $this->evaluateForElementByXPath($xpath, <<<'JS'
-            (function () {
-                if (!element || !((element.type === 'checkbox') || (element.type === 'radio')))
-                    throw new Error('Element is not a valid checkbox or radio button.');
-                
-                if (element.checked === true) element.click();
-            })();
-JS
-        );
+        $this->evaluateForElementByXPath($xpath, 'Electron.setChecked(element, false)');
     }
 
     /**
@@ -571,15 +488,7 @@ JS
      */
     public function isChecked($xpath)
     {
-        return $this->evaluateForElementByXPath($xpath, <<<'JS'
-            (function () {
-                if (!element || !((element.type === 'checkbox') || (element.type === 'radio')))
-                    throw new Error('Element is not a valid checkbox or radio button.');
-                
-                return element.checked;
-            })();
-JS
-        );
+        return $this->evaluateForElementByXPath($xpath, 'Electron.isChecked(element)');
     }
 
     /**
@@ -587,106 +496,11 @@ JS
      */
     public function selectOption($xpath, $value, $multiple = false)
     {
-        $this->evaluateForElementByXPath($xpath, <<<JS
-            (function () {
-                if (element.tagName === 'INPUT' && element.type === 'radio') {
-                    {$this->scriptSelectRadioValue()}
-                    return;
-                }
-        
-                if (element.tagName === 'SELECT') {
-                    {$this->scriptSelectOptionOnElement()}
-                    return;
-                }
-        
-                throw new Error('Element is not a valid select or radio input');
-            })();
-JS
-            ,
+        $this->evaluateForElementByXPath(
+            $xpath,
+            'Electron.selectOption(element, value, multiple)',
             ['value' => $value, 'multiple' => $multiple]
         );
-    }
-
-    /**
-     * @return string
-     */
-    protected function scriptSelectRadioValue()
-    {
-        return <<<'JS'
-            var name = element.name,
-                form = element.form,
-                input = null;
-        
-            if (element.value === value) {
-                element.click();
-                return;
-            }
-            
-            if (!name) {
-                throw new Error('The radio button does not have the value "' + value + '".');
-            }
-            
-            if (form) {
-                var group = form[name];
-                for (var i = 0; i < group.length; i++) {
-                    if (group[i].value === value) {
-                        input = group[i];
-                    }
-                }
-            } else {
-                throw new Error('The radio group "' + name + '" is not in a form.');
-            }
-
-            if (!input) {
-                throw new Error('The radio group "' + name + '" does not have an option "' + value + '".');
-            }
-
-            input.click();
-JS;
-    }
-
-    /**
-     * @return string
-     */
-    protected function scriptSelectOptionOnElement()
-    {
-        return <<<JS
-            var option = null;
-
-            for (var i = 0; i < element.options.length; i++) {
-                if (element.options[i].value === value) {
-                    option = element.options[i];
-                    break;
-                }
-            }
-
-            if (!option) {
-                throw new Error('Select box "' + (element.name || element.id) + '" does not have an option "' + value + '".');
-            }
-
-            if ((typeof(multiple) !== 'undefined' && multiple) || !element.multiple){
-                if (!option.selected) {
-                    option.selected = true; // FIXME Should have been "option.click();" but it doesn't work... are we losing events now?
-                }
-            } else {
-                {$this->scriptDeselectAllOptions()}
-                option.selected = true; // FIXME Should have been "option.click();" but it doesn't work... are we losing events now?
-            }
-            
-            {$this->scriptSynTrigger('change')};
-JS;
-    }
-
-    /**
-     * @return string
-     */
-    protected function scriptDeselectAllOptions()
-    {
-        return <<<'JS'
-            for (var i = 0; i < element.options.length; i++) {
-                element.options[i].selected = false;
-            }
-JS;
     }
 
     /**
@@ -694,24 +508,7 @@ JS;
      */
     public function isSelected($xpath)
     {
-        return $this->evaluateForElementByXPath($xpath, <<<'JS'
-            (function () {
-                if (!element || element.tagName !== 'OPTION')
-                    throw new Error('Element is not a valid option element.');
-                
-                var select;
-                if (element.parentElement.tagName === 'SELECT') { // select -> option
-                    select = element.parentElement;
-                } else if(element.parentElement.parentElement.tagName === 'SELECT') { // select -> optgroup -> option
-                    select = element.parentElement.parentElement;
-                } else {
-                    throw new Error('Could not find a containing select element.');
-                }
-                
-                return select.value === element.value;
-            })();
-JS
-        );
+        return $this->evaluateForElementByXPath($xpath, 'Electron.isSelected(element)');
     }
 
     /**
@@ -1039,10 +836,7 @@ JS
      */
     protected function scriptXPathEval($xpath)
     {
-        return sprintf(
-            'document.evaluate(%s, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue',
-            json_encode($xpath)
-        );
+        return sprintf('Electron.getElementByXPath(%s)', json_encode($xpath));
     }
 
     /**
