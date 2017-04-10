@@ -20,11 +20,6 @@ class WebDriverTest extends TestCase
      */
     protected $driver;
 
-    public static function setUpBeforeClass()
-    {
-        self::markTestSkipped('Temporarily skipped custom tests.');
-    }
-
     public function setUp()
     {
         parent::setUp();

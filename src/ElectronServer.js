@@ -599,7 +599,14 @@ Electron.app.on('ready', function() {
             },
 
             getScreenshotResponse: function (cb) {
-                Logger.debug('getScreenshotResponse() => %j', screenshotResponse);
+                var b64key = 'base64data',
+                    b64Len = (screenshotResponse && screenshotResponse[b64key]) ? screenshotResponse[b64key].length : 0,
+                    maxData = 2000,
+                    logData = b64Len > maxData
+                        ? {'base64data': screenshotResponse[b64key].substr(0, maxData) + '[trimmed ' + (b64Len - maxData) + ' chars]'}
+                        : screenshotResponse;
+
+                Logger.debug('getScreenshotResponse() => %j', logData);
 
                 cb(screenshotResponse);
             },
