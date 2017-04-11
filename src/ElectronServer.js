@@ -440,8 +440,8 @@ Electron.app.on('ready', function() {
                 cb();
             },
 
-            switchToIFrame: function () {
-                // TODO
+            switchToIFrame: function (name, cb) {
+                // TODO Currently blocked by https://github.com/electron/electron/issues/5115
             },
 
             setRequestHeader: function (name, value, cb) {

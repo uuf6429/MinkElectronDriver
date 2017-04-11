@@ -246,16 +246,14 @@ class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
     }
 
     /**
-     * Switches to specific iFrame.
-     *
-     * @param string $name iframe name (null for switching back)
-     *
-     * @throws UnsupportedDriverActionException When operation not supported by the driver
-     * @throws DriverException                  When the operation cannot be done
+     * @inheritdoc
+     * @todo Currently blocked by https://github.com/electron/electron/issues/5115
      */
     public function switchToIFrame($name = null)
     {
-        parent::switchToIFrame($name); // TODO: Implement switchToIFrame() method.
+        throw new UnsupportedDriverActionException('iFrames management is not supported by %s', $this);
+
+        $this->sendAndWaitWithoutResult('switchToIFrame', [$name]);
     }
 
     /**
@@ -749,24 +747,30 @@ class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
      */
     protected function sendAndWaitWithResult($mtd, $args = [])
     {
-        if (!$this->dnodeClient) {
-            throw new DriverException('DNode client is not connected to ElectronServer.');
+        try {
+            if (!$this->dnodeClient) {
+                throw new DriverException('DNode client is not connected to ElectronServer.');
+            }
+
+            $result = $this->dnodeClient->call($mtd, $args);
+
+            if (count($result) !== 1) {
+                throw new DriverException(
+                    sprintf(
+                        "Unexpected response from server; expected one result, not %d.\nMethod: %s\nArguments: %s\nResponse: %s",
+                        count($result),
+                        $mtd,
+                        var_export($args, true),
+                        var_export($result, true)
+                    )
+                );
+            }
+        } catch (\Exception $ex) {
+            $this->flushServerOutput();
+            throw $ex;
         }
 
-        $result = $this->dnodeClient->call($mtd, $args);
         $this->flushServerOutput();
-
-        if (count($result) !== 1) {
-            throw new DriverException(
-                sprintf(
-                    "Unexpected response from server; expected one result, not %d.\nMethod: %s\nArguments: %s\nResponse: %s",
-                    count($result),
-                    $mtd,
-                    var_export($args, true),
-                    var_export($result, true)
-                )
-            );
-        }
 
         return $result[0];
     }
@@ -775,26 +779,33 @@ class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
      * @param string $mtd
      * @param array $args
      * @throws DriverException
+     * @throws \Exception
      */
     protected function sendAndWaitWithoutResult($mtd, $args = [])
     {
-        if (!$this->dnodeClient) {
-            throw new DriverException('DNode client is not connected to ElectronServer.');
+        try {
+            if (!$this->dnodeClient) {
+                throw new DriverException('DNode client is not connected to ElectronServer.');
+            }
+
+            $result = $this->dnodeClient->call($mtd, $args);
+
+            if (count($result) !== 0) {
+                throw new DriverException(
+                    sprintf(
+                        "Unexpected response from server; no result was not expected.\nMethod: %s\nArguments: %s\nResponse: %s",
+                        $mtd,
+                        var_export($args, true),
+                        var_export($result, true)
+                    )
+                );
+            }
+        } catch (\Exception $ex) {
+            $this->flushServerOutput();
+            throw $ex;
         }
 
-        $result = $this->dnodeClient->call($mtd, $args);
         $this->flushServerOutput();
-
-        if (count($result) !== 0) {
-            throw new DriverException(
-                sprintf(
-                    "Unexpected response from server; no result was not expected.\nMethod: %s\nArguments: %s\nResponse: %s",
-                    $mtd,
-                    var_export($args, true),
-                    var_export($result, true)
-                )
-            );
-        }
     }
 
     protected function clearVisited()
