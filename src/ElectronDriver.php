@@ -706,10 +706,14 @@ class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
             . DIRECTORY_SEPARATOR . '.bin'
             . DIRECTORY_SEPARATOR . 'electron';
 
+        $serverScript = __DIR__
+            . DIRECTORY_SEPARATOR . 'Server'
+            . DIRECTORY_SEPARATOR . 'Server.js';
+
         return sprintf(
             '%s %s %s %s %s',
             escapeshellarg($electronPath),
-            escapeshellarg(__DIR__ . DIRECTORY_SEPARATOR . 'ElectronServer.js'),
+            escapeshellarg($serverScript),
             escapeshellarg($serverAddress),
             $this->showElectron ? 'show' : 'hide',
             $this->logLevel
@@ -744,6 +748,7 @@ class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
      * @param array $args
      * @return mixed
      * @throws DriverException
+     * @throws \Exception
      */
     protected function sendAndWaitWithResult($mtd, $args = [])
     {

@@ -53,7 +53,7 @@ Electron.app.on('ready', function() {
         options.webPreferences = options.webPreferences || {};
         options.webPreferences.devTools = showWindow;
         options.webPreferences.nodeIntegration = false;
-        options.webPreferences.preload = Path.resolve(__dirname, 'ElectronServerPreload.js');
+        options.webPreferences.preload = Path.resolve(__dirname, 'Preload.js');
 
         return options;
     };

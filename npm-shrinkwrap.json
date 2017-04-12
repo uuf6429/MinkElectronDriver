@@ -1263,7 +1263,7 @@
     },
     "uuid": {
       "version": "3.0.1",
-      "from": "https://registry.npmjs.org/uuid/-/uuid-3.0.1.tgz",
+      "from": "uuid@>=3.0.0 <4.0.0",
       "resolved": "https://registry.npmjs.org/uuid/-/uuid-3.0.1.tgz"
     },
     "validate-npm-package-license": {
