@@ -28,7 +28,8 @@ const Electron = require('electron'),
     Path = require('path'),
     DNode = require('dnode'),
     QueryString = require('querystring'),
-    Logger = require('./Logger.js');
+    Logger = require('./Logger.js'),
+    ResponseManager = require('./ResponseManager.js');
 
 var showWindow = process.argv[3] === 'show';
 Logger.LogLevel = process.argv[4] || Logger.DEBUG;
@@ -76,8 +77,7 @@ Electron.app.on('ready', function() {
         screenshotResponse = null,
         windowWillUnload = false,
         windowIdNameMap = {},
-        captureResponse = false,
-        lastResponses = {};
+        captureResponse = false;
 
     global.newWindowName = '';
     global.DELAY_SCRIPT_RESPONSE = '{%DelayElectronScriptResponse%}';
@@ -279,7 +279,7 @@ Electron.app.on('ready', function() {
                 .on('closed', function () {
                     Logger.info('Window "%s" (id %d) has been closed.', windowIdNameMap[window.id] || '', window.id);
                     delete windowIdNameMap[window.id];
-                    delete lastResponses[window.id];
+                    ResponseManager.remove(window.id);
                 })
                 .on('did-finish-load', function () {
                     Logger.info('Page finished loading.');
@@ -297,18 +297,6 @@ Electron.app.on('ready', function() {
                 })
             ;
 
-            var getDecodedBody = function (response) {
-                if (!response['base64Encoded']) {
-                    return response.body;
-                }
-
-                if (typeof Buffer.from === 'function') {
-                    return Buffer.from(response.body, 'base64').toString();
-                } else {
-                    return new Buffer(response.body, 'base64').toString();
-                }
-            };
-
             try {
                 window.webContents.debugger.attach('1.2');
 
@@ -318,15 +306,11 @@ Electron.app.on('ready', function() {
                             'Network.getResponseBody',
                             {'requestId': params.requestId},
                             function (_, response) {
-                                lastResponses[window.id] = {
-                                    url: params.response.url,
-                                    status: params.response.status,
-                                    statusText: params.response.statusText,
-                                    headers: params.response.headers,
-                                    content: getDecodedBody(response)
-                                };
-
-                                Logger.debug('Last response for window %s set to: %j', window.id, lastResponses[window.id]);
+                                ResponseManager.set(window.id, params.response, response);
+                                Logger.debug('Last response for window %s set to: %j', window.id, {
+                                    'meta': params.response,
+                                    'body': response
+                                });
                             }
                         );
 
@@ -337,7 +321,6 @@ Electron.app.on('ready', function() {
                 });
 
                 window.webContents.debugger.sendCommand('Network.enable');
-
             } catch (error) {
                 Logger.error('Could not attach debugger: %s', (error ? (error.stack || error) : '').toString());
             }
@@ -367,7 +350,7 @@ Electron.app.on('ready', function() {
 
                 pageVisited = null;
                 captureResponse = true;
-                lastResponses[currWindow.id] = null;
+                ResponseManager.remove(currWindow.id);
 
                 cb();
             },
@@ -453,7 +436,8 @@ Electron.app.on('ready', function() {
             },
 
             getResponseHeaders: function (cb) {
-                var lastHeaders = (lastResponses[currWindow.id] || {}).headers || null;
+                var response = ResponseManager.get(currWindow.id);
+                var lastHeaders = (response || {}).headers || null;
 
                 Logger.debug('getResponseHeaders() (winId: %d) => %j', currWindow.id, lastHeaders);
 
@@ -516,7 +500,8 @@ Electron.app.on('ready', function() {
             },
 
             getStatusCode: function (cb) {
-                var lastStatus = (lastResponses[currWindow.id] || {}).status || null;
+                var response = ResponseManager.get(currWindow.id);
+                var lastStatus = (response || {}).status || null;
 
                 Logger.debug('getStatusCode() (winId: %d) => %s', currWindow.id, lastStatus);
 
@@ -524,7 +509,8 @@ Electron.app.on('ready', function() {
             },
 
             getContent: function (cb) {
-                var lastContent = {content: ((lastResponses[currWindow.id] || {}).content || null)};
+                var response = ResponseManager.get(currWindow.id);
+                var lastContent = {content: ((response || {}).content || null)};
 
                 Logger.debug('getContent() (winId: %d) => %j', currWindow.id, lastContent);
 
