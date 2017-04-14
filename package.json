@@ -11,10 +11,7 @@
   "bugs": "https://github.com/uuf6429/MinkElectronDriver/issues",
   "author": "Christian Sciberras <christian@sciberras.me> (http://christian.sciberras.me/)",
   "license": "MIT",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/uuf6429/MinkElectronDriver.git"
-  },
+  "repository": "uuf6429/MinkElectronDriver",
   "dependencies": {
     "dnode": "~1.2.2",
     "electron": "~1.6.2",
