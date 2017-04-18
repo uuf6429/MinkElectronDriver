@@ -1,7 +1,8 @@
-module.exports = (function() {
-    const Util = require('util');
+'use strict';
 
-    var logger = {};
+module.exports = (function () {
+    const Util = require('util'),
+        logger = {};
 
     // See PSR-3 LogLevel constants.
     Object.defineProperty(logger, 'EMERGENCY', {get:function(){return 'emergency';}});
@@ -13,7 +14,10 @@ module.exports = (function() {
     Object.defineProperty(logger, 'INFO', {get:function(){return 'info';}});
     Object.defineProperty(logger, 'DEBUG', {get:function(){return 'debug';}});
 
-    var levelMap = [
+    /**
+     * @type {String[]}
+     */
+    const levelMap = [
         logger.DEBUG,
         logger.INFO,
         logger.NOTICE,
@@ -24,10 +28,15 @@ module.exports = (function() {
         logger.EMERGENCY
     ];
 
-    var logLevel = 0;
+    let logLevel = 0;
 
+    /**
+     * @param {String} level
+     * @param {any[]} fmtArgs
+     * @param {Object} [context]
+     */
     const log = function (level, fmtArgs, context) {
-        var targetLevel = levelMap.indexOf(level);
+        let targetLevel = levelMap.indexOf(level);
 
         if (targetLevel === -1) {
             throw new Error('Logging failed; "' + level + '" is not a valid log level.');
@@ -44,48 +53,91 @@ module.exports = (function() {
         }
     };
 
+    /**
+     * @param {String} level
+     * @param {String} message
+     * @param {Object} context
+     */
     logger.log = function (level, message, context) {
         log(level, [message], context);
     };
 
-    logger.emergency = function () {
+    /**
+     * @param {String} msg
+     * @param {...*} [args]
+     */
+    logger.emergency = function (msg, ...args) {
         log(logger.EMERGENCY, arguments);
     };
 
-    logger.alert = function () {
+    /**
+     * @param {String} msg
+     * @param {...*} [args]
+     */
+    logger.alert = function (msg, ...args) {
         log(logger.ALERT, arguments);
     };
 
-    logger.critical = function () {
+    /**
+     * @param {String} msg
+     * @param {...*} [args]
+     */
+    logger.critical = function (msg, ...args) {
         log(logger.CRITICAL, arguments);
     };
 
-    logger.error = function () {
+    /**
+     * @param {String} msg
+     * @param {...*} [args]
+     */
+    logger.error = function (msg, ...args) {
         log(logger.ERROR, arguments);
     };
 
-    logger.warn = function () {
+    /**
+     * @param {String} msg
+     * @param {...*} [args]
+     */
+    logger.warn = function (msg, ...args) {
         log(logger.WARNING, arguments);
     };
 
-    logger.notice = function () {
+    /**
+     * @param {String} msg
+     * @param {...*} [args]
+     */
+    logger.notice = function (msg, ...args) {
         log(logger.NOTICE, arguments);
     };
 
-    logger.info = function () {
+    /**
+     * @param {String} msg
+     * @param {...*} [args]
+     */
+    logger.info = function (msg, ...args) {
         log(logger.INFO, arguments);
     };
 
-    logger.debug = function () {
+    /**
+     * @param {String} msg
+     * @param {...*} [args]
+     */
+    logger.debug = function (msg, ...args) {
         log(logger.DEBUG, arguments);
     };
 
     Object.defineProperty(logger, 'LogLevel', {
+        /**
+         * @returns {String|undefined}
+         */
         get: function () {
             return levelMap[logLevel];
         },
+        /**
+         * @param {String} level
+         */
         set: function (level) {
-            var targetLevel = levelMap.indexOf(level);
+            let targetLevel = levelMap.indexOf(level);
 
             if (targetLevel === -1) {
                 throw new Error('Cannot set log level; "' + level + '" is not a valid log level.');

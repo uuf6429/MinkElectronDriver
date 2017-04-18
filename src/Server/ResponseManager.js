@@ -1,30 +1,33 @@
-module.exports = (function() {
+'use strict';
+
+module.exports = (function () {
     /**
      * @typedef {Object} Response
-     * @property {string} url
-     * @property {integer} status
-     * @property {string} statusText
+     * @property {String} url
+     * @property {Integer} status
+     * @property {String} statusText
      * @property {Object.<string, *>} headers
-     * @property {string} content
-     * @property {number} createdAt
+     * @property {String} content
+     * @property {Number} createdAt
      */
     /**
      * @typedef {Object} CRDResponseMeta
-     * @property {string} url
-     * @property {integer} status
-     * @property {string} statusText
+     * @property {String} url
+     * @property {Integer} status
+     * @property {String} statusText
      * @property {Object.<string, *>} headers
      */
     /**
      * @typedef {Object} CRDResponseBody
-     * @property {bool} base64Encoded
-     * @property {string} body
+     * @property {Boolean} [base64Encoded]
+     * @property {String} body
      */
 
     const GC_INT = 30000,   // clean up old responses every 30s
-          GC_TTL = 300000;  // remove responses older than 5min
+        GC_TTL = 300000;    // remove responses older than 5min
 
-    var manager = {},
+    const manager = {},
+        Logger = require('./Logger'),
         /**
          * @type {Object.<string, Response>}
          */
@@ -34,8 +37,8 @@ module.exports = (function() {
      * @param {CRDResponseBody} response
      * @returns {String}
      */
-    var getDecodedBody = function (response) {
-        if (!response['base64Encoded']) {
+    const getDecodedBody = function (response) {
+        if (!response.base64Encoded) {
             return response.body;
         }
 
@@ -50,11 +53,20 @@ module.exports = (function() {
      * Remove old responses.
      */
     manager.gc = function () {
-        var timeThreshold = Date.now() - GC_TTL;
-        for (var key in responses) {
+        const timeThreshold = Date.now() - GC_TTL,
+            clearedKeys = [];
+
+        for (let key in responses) {
             if (responses.hasOwnProperty(key) && responses[key].createdAt < timeThreshold) {
-                delete responses[key];
+                clearedKeys.push(key);
+                this.remove(key);
             }
+        }
+
+        if (clearedKeys.length) {
+            Logger.info('ResponseManager GC: cleared response for %s %s.', clearedKeys.length > 1 ? 'frames' : 'frame', clearedKeys.join(', '));
+        } else {
+            Logger.info('ResponseManager GC: no expired responses found.');
         }
     };
 
@@ -63,7 +75,7 @@ module.exports = (function() {
      * @param {string|number} frameId
      * @returns {Response|null}
      */
-    manager.get = function(frameId){
+    manager.get = function (frameId) {
         return responses[frameId.toString()] || null;
     };
 
@@ -73,7 +85,7 @@ module.exports = (function() {
      * @param {CRDResponseMeta} meta
      * @param {CRDResponseBody} body
      */
-    manager.set = function(frameId, meta, body){
+    manager.set = function (frameId, meta, body) {
         responses[frameId.toString()] = {
             url: meta.url,
             status: meta.status,
@@ -82,13 +94,15 @@ module.exports = (function() {
             content: getDecodedBody(body),
             createdAt: Date.now()
         };
+
+        Logger.debug('ResponseManager: Response for frame %s set to: %j', frameId, {meta: meta, body: body});
     };
 
     /**
      * Removes response for a frame id.
      * @param {string|number} frameId
      */
-    manager.remove = function(frameId){
+    manager.remove = function (frameId) {
         delete responses[frameId.toString()];
     };
 

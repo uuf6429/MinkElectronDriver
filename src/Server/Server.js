@@ -1,22 +1,24 @@
+'use strict';
+
 if (process.argv.length < 4
     || process.argv.length > 5
     || !process.versions['electron']
 ) {
-    var RED = "\033[31m",
-        YEL = "\033[33m",
-        GRN = "\033[32m",
-        RST = "\033[0m",
+    const RED = "\e[31m",
+        YEL = "\e[33m",
+        GRN = "\e[32m",
+        RST = "\e[0m",
         NL = "\n"
     ;
 
     process.stdout.write(RED + 'Invalid invocation or wrong amount of arguments.' + RST + NL);
     process.stdout.write(NL);
     process.stdout.write(YEL + 'Usage:' + RST + NL);
-    process.stdout.write('  electron ElectronServer.js \74host:port\76 \74show|hide\76 [log level]' + NL);
+    process.stdout.write('  electron ElectronServer.js \x3Chost:port\x3E \x3Cshow|hide\x3E [log level]' + NL);
     process.stdout.write(NL);
     process.stdout.write(YEL + 'Parameters:' + RST + NL);
-    process.stdout.write('  ' + GRN + '\74host:port\76' + RST + '   (Required) Specifies the IP / port the server should listen on.' + NL);
-    process.stdout.write('  ' + GRN + '\74show|hide\76' + RST + '   (Required) Show or hide Electron window.' + NL);
+    process.stdout.write('  ' + GRN + '\x3Chost:port\x3E' + RST + '   (Required) Specifies the IP / port the server should listen on.' + NL);
+    process.stdout.write('  ' + GRN + '\x3Cshow|hide\x3E' + RST + '   (Required) Show or hide Electron window.' + NL);
     process.stdout.write('  ' + GRN + '[log level]' + RST + '   Sets logging verbosity (default is "debug").' + NL);
     process.stdout.write('                See PSR-3 LogLevel constants for available values.' + NL);
 
@@ -31,7 +33,7 @@ const Electron = require('electron'),
     Logger = require('./Logger.js'),
     ResponseManager = require('./ResponseManager.js');
 
-var showWindow = process.argv[3] === 'show';
+const showWindow = process.argv[3] === 'show';
 Logger.LogLevel = process.argv[4] || Logger.DEBUG;
 
 // Global exception handler
@@ -45,11 +47,15 @@ process.traceDeprecation = true;
 
 // Ensures stdout/err is always flushed before exit. See: https://github.com/nodejs/node/issues/6456
 [process.stdout, process.stderr].forEach(function (s) {
-    s && s.isTTY && s._handle && s._handle.setBlocking && s._handle.setBlocking(true);
+    s && s.isTTY && s._handle && s._handle['setBlocking'] && s._handle['setBlocking'](true);
 });
 
 Electron.app.on('ready', function() {
-    var setupWindowOptions = function (options) {
+    /**
+     * @param {Object} options
+     * @returns {Object}
+     */
+    const setupWindowOptions = function (options) {
         options.show = showWindow;
         options.webPreferences = options.webPreferences || {};
         options.webPreferences.devTools = showWindow;
@@ -60,14 +66,33 @@ Electron.app.on('ready', function() {
     };
 
     /**
-     * @param obj
+     * @param {Object} obj
      * @returns {boolean}
      */
-    var isEmptyObject = function (obj) {
+    const isEmptyObject = function (obj) {
         return Object.keys(obj).length === 0 && obj.constructor === Object;
     };
 
-    var mainWindow = new BrowserWindow(setupWindowOptions({})),
+    /**
+     * Attempts to serialize an error to a string with as much information as possible.
+     * @param {Object} error
+     * @returns {String}
+     */
+    const errorToString = function (error) {
+        if (!error) {
+            return 'Unknown (empty) error';
+        }
+
+        let result = (error.stack || error).toString();
+
+        if (result === '[object Object]') {
+            result = JSON.stringify(error);
+        }
+
+        return result;
+    };
+
+    let mainWindow = new BrowserWindow(setupWindowOptions({})),
         currWindow = mainWindow,
         pageVisited = null,
         hdrs = {},
@@ -87,8 +112,8 @@ Electron.app.on('ready', function() {
      * @param {Error} error
      */
     global.setExecutionError = function (error) {
-        Logger.error('Script evaluation failed internally: %s', (error ? (error.stack || error) : '').toString());
-        executeResponse = {'error': (error ? (error.stack || error) : '').toString()};
+        Logger.error('Script evaluation failed internally: %s', errorToString(error));
+        executeResponse = {'error': errorToString(error)};
     };
 
     /**
@@ -110,12 +135,12 @@ Electron.app.on('ready', function() {
 
     /**
      *
-     * @param {?integer} id
+     * @param {integer} id
      * @param {string} name
      * @param {string} url
      */
     global.setWindowIdName = function (id, name, url) {
-        var sId = id === null ? "" : id.toString();
+        const sId = id === null ? "" : id.toString();
 
         if (name === null) {
             Logger.info('Unlinked window named "%s" from id "%s" for %s.', name, sId, url);
@@ -132,12 +157,12 @@ Electron.app.on('ready', function() {
      * @param {string} name
      * @returns {Electron.BrowserWindow}
      */
-    var findWindowByName = function (name) {
-        var result = [];
+    const findWindowByName = function (name) {
+        const result = [];
 
-        for (var id in windowIdNameMap) {
+        for (let id in windowIdNameMap) {
             if (windowIdNameMap[id] === name) {
-                var wnd = BrowserWindow.fromId(parseInt(id));
+                const wnd = BrowserWindow.fromId(parseInt(id));
                 if (wnd) result.push(wnd);
             }
         }
@@ -161,12 +186,12 @@ Electron.app.on('ready', function() {
      * @param {function(element,function())} onSuccess
      * @param {function(Error,function())} onFailure
      */
-    var withElementByXpath = function (window, xpath, onSuccess, onFailure) {
-        var jsElementVarName = 'Electron.tmpElement';
-        var randomElementId = 'electronElement' + Math.round(Math.random() * 100000);
-        var restoreElementId = function () {
-            return currWindow.webContents.executeJavaScript(jsElementVarName + '.id = Electron.tmpOldElementId;');
-        };
+    const withElementByXpath = function (window, xpath, onSuccess, onFailure) {
+        const jsElementVarName = 'Electron.tmpElement',
+            randomElementId = 'electronElement' + Math.round(Math.random() * 100000),
+            restoreElementId = function () {
+                return currWindow.webContents.executeJavaScript(jsElementVarName + '.id = Electron.tmpOldElementId;');
+            };
 
         currWindow.webContents
             .executeJavaScript(
@@ -179,7 +204,7 @@ Electron.app.on('ready', function() {
             .then(function () {
                 currWindow.webContents.debugger.sendCommand('DOM.getDocument', {}, function (error, res) {
                     if (!isEmptyObject(error)) {
-                        var msg = 'Could not get document from RemoteDebug: ' + (error ? (error.stack || error) : '').toString();
+                        const msg = 'Could not get document from RemoteDebug: ' + errorToString(error);
                         onFailure(new Error(msg), restoreElementId);
                         return;
                     }
@@ -192,14 +217,14 @@ Electron.app.on('ready', function() {
                             res.jsElementVarName = jsElementVarName;
                             onSuccess(res, restoreElementId);
                         } else {
-                            var msg = 'Could not query document from RemoteDebug: ' + (error ? (error.stack || error) : '').toString();
+                            const msg = 'Could not query document from RemoteDebug: ' + errorToString(error);
                             onFailure(new Error(msg), restoreElementId);
                         }
                     });
                 });
             })
             .catch(function (error) {
-                var msg = 'Could not query document from RemoteDebug: ' + (error ? (error.stack || error) : '').toString();
+                const msg = 'Could not query document from RemoteDebug: ' + errorToString(error);
                 onFailure(new Error(msg), function () {});
             });
     };
@@ -214,7 +239,7 @@ Electron.app.on('ready', function() {
         Logger.debug('setFileFromScript(%j, %j, %j)', windowId, xpath, value);
 
         executeResponse = null;
-        var window = BrowserWindow.fromId(parseInt(windowId));
+        const window = BrowserWindow.fromId(parseInt(windowId));
         withElementByXpath(
             window,
             xpath,
@@ -233,24 +258,24 @@ Electron.app.on('ready', function() {
                                         executeResponse = {'result': true};
                                     })
                                     .catch(function (error) {
-                                        Logger.error('Could trigger change event: %s', (error ? (error.stack || error) : '').toString());
-                                        executeResponse = {'error': (error ? (error.stack || error) : '').toString()};
+                                        Logger.error('Could trigger change event: %s', errorToString(error));
+                                        executeResponse = {'error': errorToString(error)};
                                     });
                             })
                             .catch(function (error) {
-                                Logger.error('Could perform RemoteDebug cleanup: %s', (error ? (error.stack || error) : '').toString());
-                                executeResponse = {'error': (error ? (error.stack || error) : '').toString()};
+                                Logger.error('Could perform RemoteDebug cleanup: %s', errorToString(error));
+                                executeResponse = {'error': errorToString(error)};
                             });
                     } else {
-                        Logger.error('Could not set file value from RemoteDebug: %s', (error ? (error.stack || error) : '').toString());
-                        executeResponse = {'error': (error ? (error.stack || error) : '').toString()};
+                        Logger.error('Could not set file value from RemoteDebug: %s', errorToString(error));
+                        executeResponse = {'error': errorToString(error)};
                         onDone();
                     }
                 });
             },
             function (error, onDone) {
-                Logger.error('Could not set file field value: %s', (error ? (error.stack || error) : '').toString());
-                executeResponse = {'error': (error ? (error.stack || error) : '').toString()};
+                Logger.error('Could not set file field value: %s', errorToString(error));
+                executeResponse = {'error': errorToString(error)};
                 onDone();
             }
         );
@@ -302,34 +327,40 @@ Electron.app.on('ready', function() {
 
                 window.webContents.debugger.on('message', function (event, message, params) {
                     if (captureResponse && message === 'Network.responseReceived' && params.type === 'Document') {
-                        window.webContents.debugger.sendCommand(
-                            'Network.getResponseBody',
-                            {'requestId': params.requestId},
-                            function (_, response) {
-                                ResponseManager.set(window.id, params.response, response);
-                                Logger.debug('Last response for window %s set to: %j', window.id, {
-                                    'meta': params.response,
-                                    'body': response
-                                });
-                            }
+                        // delay request reading to avoid race condition (ugly but works :/)
+                        setTimeout(
+                            function () {
+                                window.webContents.debugger.sendCommand(
+                                    'Network.getResponseBody',
+                                    {'requestId': params.requestId},
+                                    function (error, response) {
+                                        if (isEmptyObject(error)) {
+                                            ResponseManager.set(window.id, params.response, response);
+                                        } else {
+                                            Logger.error('Could not retrieve response body: %j, response meta: %j', errorToString(error), params);
+                                        }
+                                    }
+                                );
+                            },
+                            5
                         );
 
                         captureResponse = false;
                     } else {
-                        Logger.debug('Discarded "%s" event with params: %j', message, params);
+                        Logger.debug('Discarded "%s" event.', message);
                     }
                 });
 
                 window.webContents.debugger.sendCommand('Network.enable');
             } catch (error) {
-                Logger.error('Could not attach debugger: %s', (error ? (error.stack || error) : '').toString());
+                Logger.error('Could not attach debugger: %s', errorToString(error));
             }
         }
     );
     Electron.app.emit('browser-window-created', null, mainWindow);
 
     //noinspection JSUnusedGlobalSymbols
-    var server = DNode(
+    const server = DNode(
         {
             reset: function (cb) {
                 Logger.info('Resetting page (clearing headers, session and auth).');
@@ -356,8 +387,8 @@ Electron.app.on('ready', function() {
             },
 
             visit: function (url, cb) {
-                var extraHeaders = '';
-                for (var key in hdrs) extraHeaders += key + ': ' + hdrs[key] + '\n';
+                let extraHeaders = '';
+                for (let key in hdrs) extraHeaders += key + ': ' + hdrs[key] + '\n';
 
                 Logger.debug('visit(%j) (extraHeaders: %s)', url, extraHeaders.replace(/\n/g, '\\n') || 'none');
 
@@ -436,8 +467,8 @@ Electron.app.on('ready', function() {
             },
 
             getResponseHeaders: function (cb) {
-                var response = ResponseManager.get(currWindow.id);
-                var lastHeaders = (response || {}).headers || null;
+                const response = ResponseManager.get(currWindow.id);
+                const lastHeaders = (response || {}).headers || null;
 
                 Logger.debug('getResponseHeaders() (winId: %d) => %j', currWindow.id, lastHeaders);
 
@@ -454,7 +485,7 @@ Electron.app.on('ready', function() {
                         currWindow.webContents.getURL(),
                         name,
                         function (error) {
-                            cookieResponse = {'set': !error, 'error': (error ? (error.stack || error) : '').toString()};
+                            cookieResponse = {'set': !error, 'error': errorToString(error)};
                         }
                     );
                 } else {
@@ -465,7 +496,7 @@ Electron.app.on('ready', function() {
                             'value': QueryString.escape(value)
                         },
                         function (error) {
-                            cookieResponse = {'set': !error, 'error': (error ? (error.stack || error) : '').toString()};
+                            cookieResponse = {'set': !error, 'error': errorToString(error)};
                         }
                     );
                 }
@@ -485,7 +516,7 @@ Electron.app.on('ready', function() {
                     function (error, cookies) {
                         cookieResponse = {
                             'get': cookies.length ? QueryString.unescape(cookies[0].value) : null,
-                            'error': (error ? (error.stack || error) : '').toString()
+                            'error': errorToString(error)
                         };
                     }
                 );
@@ -500,8 +531,8 @@ Electron.app.on('ready', function() {
             },
 
             getStatusCode: function (cb) {
-                var response = ResponseManager.get(currWindow.id);
-                var lastStatus = (response || {}).status || null;
+                const response = ResponseManager.get(currWindow.id);
+                const lastStatus = (response || {}).status || null;
 
                 Logger.debug('getStatusCode() (winId: %d) => %s', currWindow.id, lastStatus);
 
@@ -509,8 +540,8 @@ Electron.app.on('ready', function() {
             },
 
             getContent: function (cb) {
-                var response = ResponseManager.get(currWindow.id);
-                var lastContent = {content: ((response || {}).content || null)};
+                const response = ResponseManager.get(currWindow.id);
+                const lastContent = {content: ((response || {}).content || null)};
 
                 Logger.debug('getContent() (winId: %d) => %j', currWindow.id, lastContent);
 
@@ -536,12 +567,12 @@ Electron.app.on('ready', function() {
                             }
                         })
                         .catch(function (error) {
-                            Logger.error('Script evaluation failed: %s', (error ? (error.stack || error) : '').toString());
-                            executeResponse = {'error': (error ? (error.stack || error) : '').toString()};
+                            Logger.error('Script evaluation failed: %s', errorToString(error));
+                            executeResponse = {'error': errorToString(error)};
                         });
                 } catch (error) {
-                    Logger.error('Script evaluation failed prematurely: %s', (error ? (error.stack || error) : '').toString());
-                    executeResponse = {'error': (error ? (error.stack || error) : '').toString()};
+                    Logger.error('Script evaluation failed prematurely: %s', errorToString(error));
+                    executeResponse = {'error': errorToString(error)};
                 }
 
                 cb();
@@ -562,9 +593,9 @@ Electron.app.on('ready', function() {
 
                 screenshotResponse = null;
 
-                var tryTakingScreenshot = function (tries) {
+                const tryTakingScreenshot = function (tries) {
                     currWindow.capturePage(currWindow.getContentBounds(), function (image) {
-                        var data = image.toPNG().toString('base64');
+                        const data = image.toPNG().toString('base64');
 
                         if (data) {
                             screenshotResponse = {'base64data': data};
@@ -585,7 +616,7 @@ Electron.app.on('ready', function() {
             },
 
             getScreenshotResponse: function (cb) {
-                var b64key = 'base64data',
+                const b64key = 'base64data',
                     b64Len = (screenshotResponse && screenshotResponse[b64key]) ? screenshotResponse[b64key].length : 0,
                     maxData = 2000,
                     logData = b64Len > maxData
@@ -598,7 +629,7 @@ Electron.app.on('ready', function() {
             },
 
             getWindowNames: function (cb) {
-                var windowNames = Object.values(windowIdNameMap);
+                const windowNames = Object.values(windowIdNameMap);
 
                 Logger.debug('getWindowNames() => %j', windowNames);
 
@@ -646,27 +677,27 @@ Electron.app.on('ready', function() {
                                             .executeJavaScript('Electron.syn.trigger(' + element.jsElementVarName + ', "change", {});')
                                             .then(function () {
                                                 Logger.info('File was attached to input field successfully.');
-                                                executeResponse = true;
+                                                executeResponse = {'result': true};
                                             })
                                             .catch(function (error) {
-                                                Logger.error('Could trigger change event: %s', (error ? (error.stack || error) : '').toString());
-                                                executeResponse = {'error': (error ? (error.stack || error) : '').toString()};
+                                                Logger.error('Could trigger change event: %s', errorToString(error));
+                                                executeResponse = {'error': errorToString(error)};
                                             });
                                     })
                                     .catch(function (error) {
-                                        Logger.error('Could perform RemoteDebug cleanup: %s', (error ? (error.stack || error) : '').toString());
-                                        executeResponse = {'error': (error ? (error.stack || error) : '').toString()};
+                                        Logger.error('Could perform RemoteDebug cleanup: %s', errorToString(error));
+                                        executeResponse = {'error': errorToString(error)};
                                     });
                             } else {
-                                Logger.error('Could not attach file from RemoteDebug: %s', (error ? (error.stack || error) : '').toString());
-                                executeResponse = {'error': (error ? (error.stack || error) : '').toString()};
+                                Logger.error('Could not attach file from RemoteDebug: %s', errorToString(error));
+                                executeResponse = {'error': errorToString(error)};
                                 onDone();
                             }
                         });
                     },
                     function (error, onDone) {
-                        Logger.error('Could not attach file: %s', (error ? (error.stack || error) : '').toString());
-                        executeResponse = {'error': (error ? (error.stack || error) : '').toString()};
+                        Logger.error('Could not attach file: %s', errorToString(error));
+                        executeResponse = {'error': errorToString(error)};
                         onDone();
                     }
                 );
@@ -684,10 +715,10 @@ Electron.app.on('ready', function() {
                     params,
                     function (error) {
                         if (isEmptyObject(error)) {
-                            executeResponse = {};
+                            executeResponse = {'result': true};
                         } else {
-                            Logger.error('Could not dispatch mouse event (%j): %s', params, (error ? (error.stack || error) : '').toString());
-                            executeResponse = {'error': (error ? (error.stack || error) : '').toString()};
+                            Logger.error('Could not dispatch mouse event (%j): %s', params, errorToString(error));
+                            executeResponse = {'error': errorToString(error)};
                         }
                     }
                 );
@@ -700,7 +731,7 @@ Electron.app.on('ready', function() {
         }
     );
 
-    var params = /(.*):(\d+)/.exec(process.argv[2]);
+    let params = /(.*):(\d+)/.exec(process.argv[2]);
     if (params) {
         params = {
             host: params[1],
