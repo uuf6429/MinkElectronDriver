@@ -80,7 +80,7 @@ Electron.app.on('ready', function() {
      */
     const errorToString = function (error) {
         if (!error) {
-            return 'Unknown (empty) error';
+            return '';
         }
 
         let result = (error.stack || error).toString();
