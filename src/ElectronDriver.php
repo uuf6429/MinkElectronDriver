@@ -160,6 +160,8 @@ class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
     public function stop()
     {
         try {
+            $this->sendAndWaitWithoutResult('shutdown');
+
             if ($this->dnodeClient) {
                 @$this->dnodeClient->close();
                 $this->dnodeClient = null;

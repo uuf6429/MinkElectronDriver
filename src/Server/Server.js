@@ -724,6 +724,13 @@ Electron.app.on('ready', function() {
                 );
 
                 cb();
+            },
+
+            shutdown: function (cb) {
+                cb();
+
+                server.end();
+                process.exit();
             }
         },
         {
