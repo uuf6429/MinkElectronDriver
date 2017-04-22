@@ -5,7 +5,7 @@ namespace Behat\Mink\Driver;
 use Behat\Mink\Exception\DriverException;
 use Behat\Mink\Exception\UnsupportedDriverActionException;
 use uuf6429\DnodeSyncClient\Connection;
-use uuf6429\DnodeSyncClient\Exception\IOException;
+use uuf6429\DnodeSyncClient\Dnode;
 use Psr\Log;
 use Symfony\Component\Process\Process;
 
@@ -119,16 +119,9 @@ class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
                 }
 
                 try {
-                    $error = $errorMessage = null;
-                    $stream = @stream_socket_client($clientAddress, $error, $errorMessage);
-
-                    if (!$stream) {
-                        throw new IOException("Can't create socket to $clientAddress. Error: $error $errorMessage");
-                    }
-
-                    $this->dnodeClient = new Connection($stream);
+                    $this->dnodeClient = (new Dnode())->connectToAddress($clientAddress);
                     break;
-                } catch (IOException $ex) {
+                } catch (\Exception $ex) {
                     if ($currTry == $maxTries) {
                         if ($this->electronProcess && $this->electronProcess->isRunning()) {
                             $this->electronProcess->stop();
@@ -151,7 +144,7 @@ class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
     {
         $serverRunning = !$this->autoStartServer || ($this->electronProcess && $this->electronProcess->isStarted());
 
-        return $serverRunning && $this->dnodeClient /*&& !$this->dnodeClient->isClosed()*/;
+        return $serverRunning && $this->dnodeClient && !$this->dnodeClient->isClosed();
     }
 
     /**
