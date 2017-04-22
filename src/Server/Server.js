@@ -230,6 +230,37 @@ Electron.app.on('ready', function() {
     };
 
     /**
+     * @param {Electron.Debugger} dbg
+     * @param {Object} responseParams
+     * @param {String|Number} frameId
+     * @param {Integer} maxTries
+     * @param {Integer} [currTry]
+     */
+    const retrieveDebuggerResponseBody = function (dbg, responseParams, frameId, maxTries, currTry) {
+        currTry = currTry || 1;
+
+        dbg.sendCommand(
+            'Network.getResponseBody',
+            {'requestId': responseParams.requestId},
+            function (error, response) {
+                if (isEmptyObject(error)) {
+                    ResponseManager.set(frameId, responseParams.response, response);
+                } else if (currTry <= maxTries) {
+                    Logger.notice('Could not retrieve response body (try %d of %d): %s', currTry, maxTries, errorToString(error));
+                    setTimeout(
+                        function () {
+                            retrieveDebuggerResponseBody(dbg, responseParams, frameId, maxTries, currTry + 1);
+                        },
+                        5
+                    );
+                } else {
+                    Logger.error('Could not retrieve response body after %d tries: %s, response meta: %j', maxTries, errorToString(error), responseParams);
+                }
+            }
+        );
+    };
+
+    /**
      * @param {int} windowId
      * @param {string} xpath
      * @param {string} value
@@ -327,24 +358,7 @@ Electron.app.on('ready', function() {
 
                 window.webContents.debugger.on('message', function (event, message, params) {
                     if (captureResponse && message === 'Network.responseReceived' && params.type === 'Document') {
-                        // delay request reading to avoid race condition (ugly but works :/)
-                        setTimeout(
-                            function () {
-                                window.webContents.debugger.sendCommand(
-                                    'Network.getResponseBody',
-                                    {'requestId': params.requestId},
-                                    function (error, response) {
-                                        if (isEmptyObject(error)) {
-                                            ResponseManager.set(window.id, params.response, response);
-                                        } else {
-                                            Logger.error('Could not retrieve response body: %j, response meta: %j', errorToString(error), params);
-                                        }
-                                    }
-                                );
-                            },
-                            5
-                        );
-
+                        retrieveDebuggerResponseBody(window.webContents.debugger, params, window.id, 10);
                         captureResponse = false;
                     } else {
                         Logger.debug('Discarded "%s" event.', message);
