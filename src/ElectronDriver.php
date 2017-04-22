@@ -4,8 +4,8 @@ namespace Behat\Mink\Driver;
 
 use Behat\Mink\Exception\DriverException;
 use Behat\Mink\Exception\UnsupportedDriverActionException;
-use DnodeSyncClient\Connection;
-use DnodeSyncClient\IOException;
+use uuf6429\DnodeSyncClient\Connection;
+use uuf6429\DnodeSyncClient\Exception\IOException;
 use Psr\Log;
 use Symfony\Component\Process\Process;
 

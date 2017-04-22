@@ -13,7 +13,7 @@
     "php": ">=5.5",
     "behat/mink": "~1.7",
     "symfony/process": "^3.0",
-    "erasys/dnode-php-sync-client": "^1.0.2",
+    "uuf6429/dnode-php-sync-client": "^2.0",
     "eloquent/composer-npm-bridge": "^3.0.1"
   },
   "require-dev": {
@@ -24,10 +24,7 @@
   "autoload": {
     "psr-4": {
       "Behat\\Mink\\Driver\\": "src/"
-    },
-    "classmap": [
-      "vendor/erasys/dnode-php-sync-client/"
-    ]
+    }
   },
   "autoload-dev": {
     "psr-4": {
