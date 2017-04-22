@@ -45,6 +45,12 @@ install:
     - composer install --no-progress --ansi
     - composer show --ansi
 
+before_test:
+  - ps: $minkServer = Start-Process php -ArgumentList "-S localhost:8002 -t vendor/mink/driver-testsuite/web-fixtures" -PassThru
+
+after_test:
+  - ps: Stop-Process -Id $minkServer.Id
+
 test_script:
   - cd c:\projects\MinkElectronDriver
   - vendor/bin/phpunit --colors=always -c phpunit.xml.dist

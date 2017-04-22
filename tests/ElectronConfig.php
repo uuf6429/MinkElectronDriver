@@ -3,6 +3,7 @@
 namespace Behat\Mink\Tests\Driver;
 
 use Behat\Mink\Driver\ElectronDriver;
+use Psr\Log\LogLevel;
 
 class ElectronConfig extends AbstractConfig
 {
@@ -38,7 +39,7 @@ class ElectronConfig extends AbstractConfig
      */
     public function createDriver()
     {
-        return new ElectronDriver($this->logger, false, 'debug');
+        return new ElectronDriver($this->logger, false, LogLevel::DEBUG);
     }
 
     /**
