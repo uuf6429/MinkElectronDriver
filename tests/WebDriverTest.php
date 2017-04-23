@@ -195,7 +195,11 @@ class WebDriverTest extends TestCase
 
         $windowOrigHeight = $this->driver->evaluateScript('window.outerHeight');
 
-        $this->driver->maximizeWindow();
+        try {
+            $this->driver->maximizeWindow();
+        } catch (UnsupportedDriverActionException $ex) {
+            $this->markTestSkipped($ex);
+        }
         $this->driver->wait(1000, 'false');
 
         $screenHeight = $this->driver->evaluateScript('screen.availHeight');

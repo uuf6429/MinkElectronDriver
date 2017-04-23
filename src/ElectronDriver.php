@@ -79,7 +79,6 @@ class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
     public function start()
     {
         try {
-            // TODO add more config options (eg; node path, env vars, args, etc)
             list($clientAddress, $serverAddress) = $this->buildClientServerAddress();
 
             if ($this->autoStartServer) {
@@ -242,11 +241,11 @@ class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
 
     /**
      * @inheritdoc
-     * @todo Currently blocked by https://github.com/electron/electron/issues/5115
+     * @todo Currently limited by Electron API, see: https://github.com/uuf6429/MinkElectronDriver/issues/11
      */
     public function switchToIFrame($name = null)
     {
-        throw new UnsupportedDriverActionException('iFrames management is not supported by %s', $this);
+        parent::switchToIFrame($name);
 
         $this->sendAndWaitWithoutResult('switchToIFrame', [$name]);
     }
@@ -665,9 +664,13 @@ class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
 
     /**
      * {@inheritdoc}
+     *
+     * @todo Currently fails headless CI test, see: https://github.com/uuf6429/MinkElectronDriver/issues/8
      */
     public function maximizeWindow($name = null)
     {
+        parent::maximizeWindow($name);
+
         $this->sendAndWaitWithoutResult('maximizeWindow', [$name]);
     }
 
@@ -986,7 +989,7 @@ class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
     {
         return $this->evaluateForElementByXPath($xpath, <<<'JS'
             (function(){
-                var rect = element.getBoundingClientRect(),
+                const rect = element.getBoundingClientRect(),
                     x = Math.round(rect.left + (rect.width / 2)),
                     y = Math.round(rect.top + (rect.height / 2));
                 return {'x': x, 'y': y};

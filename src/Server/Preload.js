@@ -158,7 +158,6 @@
          * @param {HTMLInputElement} element
          * @param {*} value
          * @returns {*}
-         * @todo See also: https://github.com/segmentio/nightmare/blob/5ee597175861023cd23ccc5421f4fe3e00e54159/lib/runner.js#L369
          */
         'setValue': function(xpath, element, value){
             switch (true) {
@@ -279,11 +278,11 @@
 
             if (multiple || !element.multiple){
                 if (!option.selected) {
-                    option.selected = true; // FIXME Should have been "option.click();" but it doesn't work... are we losing events now?
+                    option.selected = true;
                 }
             } else {
                 this.deselectAllOptions(element);
-                option.selected = true; // FIXME Should have been "option.click();" but it doesn't work... are we losing events now?
+                option.selected = true;
             }
 
             this.syn.trigger(element, 'change', {});
