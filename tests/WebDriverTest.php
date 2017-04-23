@@ -188,4 +188,22 @@ class WebDriverTest extends TestCase
         $this->assertContains('popup1rev', $this->driver->getWindowNames());
         $this->assertSame('popup1rev', $this->driver->getWindowName());
     }
+
+    public function testWindowMaximize()
+    {
+        $this->driver->visit('https://httpbin.org/status/200');
+
+        $windowOrigHeight = $this->driver->evaluateScript('window.outerHeight');
+
+        $this->driver->maximizeWindow();
+        $this->driver->wait(1000, 'false');
+
+        $screenHeight = $this->driver->evaluateScript('screen.availHeight');
+        $windowHeight = $this->driver->evaluateScript('window.outerHeight');
+
+        $this->assertTrue(
+            abs($screenHeight - $windowHeight) <= 100,
+            "Maximize failed (screen height: $screenHeight, window height: $windowHeight, original: $windowOrigHeight)"
+        );
+    }
 }
