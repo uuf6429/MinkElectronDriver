@@ -373,6 +373,8 @@ Electron.app.on('ready', function() {
     );
     Electron.app.emit('browser-window-created', null, mainWindow);
 
+    Logger.info('Starting up server...');
+
     //noinspection JSUnusedGlobalSymbols
     const server = DNode(
         {
@@ -741,10 +743,17 @@ Electron.app.on('ready', function() {
             },
 
             shutdown: function (cb) {
-                cb();
+                Logger.info('Server is shutting down...');
 
-                server.end();
-                process.exit();
+                setTimeout(
+                    function () {
+                        server.end();
+                        process.exit();
+                    },
+                    10
+                );
+
+                cb();
             }
         },
         {
