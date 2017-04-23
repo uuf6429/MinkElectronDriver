@@ -1,5 +1,5 @@
 (function () {
-    var remote = require('electron').remote,
+    const remote = require('electron').remote,
         setExecutionError = remote.getGlobal('setExecutionError'),
         setWindowUnloading = remote.getGlobal('setWindowUnloading'),
         setWindowIdName = remote.getGlobal('setWindowIdName'),
@@ -12,14 +12,14 @@
         return true;
     };
 
-    var oldOnUnload = window.onbeforeunload;
+    const oldOnUnload = window.onbeforeunload;
     window.onbeforeunload = function (error) {
         setWindowUnloading(true);
         if (oldOnUnload) oldOnUnload();
         setWindowIdName(electronWindow.id, null, location.href);
     };
 
-    var oldWndName = window.name || remote.getGlobal('newWindowName');
+    let oldWndName = window.name || remote.getGlobal('newWindowName');
     window.__defineSetter__("name", function (name) {
         oldWndName = name;
         setWindowIdName(electronWindow.id, name, location.href);
@@ -39,7 +39,7 @@
 
         // Thanks to Jason Farrell from Use All Five
         'isVisible': function isVisible(el, t, r, b, l, w, h) {
-            var p = el.parentNode,
+            const p = el.parentNode,
                 VISIBLE_PADDING = 2;
 
             if (!this._elementInDocument(el)) {
@@ -122,12 +122,10 @@
          * @returns {*}
          */
         'getValue': function (element) {
-            var i;
-
             switch (true) {
                 case element.tagName === 'SELECT' && element.multiple:
-                    var selected = [];
-                    for (i = 0; i < element.options.length; i++) {
+                    const selected = [];
+                    for (let i = 0; i < element.options.length; i++) {
                         if (element.options[i].selected) {
                             selected.push(element.options[i].value);
                         }
@@ -138,11 +136,11 @@
                     return element.checked ? element.value : null;
 
                 case element.tagName === 'INPUT' && element.type === 'radio':
-                    var name = element.getAttribute('name');
+                    const name = element.getAttribute('name');
                     if (name) {
-                        var radioButtons = window.document.getElementsByName(name);
-                        for (i = 0; i < radioButtons.length; i++) {
-                            var radioButton = radioButtons.item(i);
+                        const radioButtons = window.document.getElementsByName(name);
+                        for (let i = 0; i < radioButtons.length; i++) {
+                            const radioButton = radioButtons.item(i);
                             if (radioButton.form === element.form && radioButton.checked) {
                                 return radioButton.value;
                             }
@@ -168,7 +166,7 @@
                     if (value && value.constructor.name === 'Array') {
                         this.deselectAllOptions(element);
 
-                        for (var n = 0; n < value.length; n++) {
+                        for (let n = 0; n < value.length; n++) {
                             this.selectOptionOnElement(element, value[n], true);
                         }
                     } else {
@@ -189,8 +187,17 @@
                     break;
 
                 default:
-                    // FIXME here we need to trigger actual key strokes, otherwise keyboard events fail
-                    element.value = value;
+                    element.value = '';
+                    // try inserting values via (synthetic) key events
+                    const keys = value.split();
+                    for (let i = 0; i < keys.length; i++) {
+                        this.syn.key(element, keys[i]);
+                    }
+                    // if key events failed setting value, set it directly
+                    if (element.value !== value) {
+                        element.value = value;
+                    }
+                    // trigger change event
                     this.syn.trigger(element, 'change', {});
                     break;
             }
@@ -203,7 +210,7 @@
             if (!element || element.tagName !== 'SELECT')
                 throw new Error('Element is not a valid select element.');
 
-            for (var i = 0; i < element.options.length; i++) {
+            for (let i = 0; i < element.options.length; i++) {
                 element.options[i].selected = false;
             }
         },
@@ -216,7 +223,7 @@
             if (!element || element.tagName !== 'OPTION')
                 throw new Error('Element is not a valid option element.');
 
-            var select;
+            let select;
             if (element.parentNode.tagName === 'SELECT') { // select -> option
                 select = element.parentNode;
             } else if(element.parentNode.parentNode.tagName === 'SELECT') { // select -> optgroup -> option
@@ -257,9 +264,9 @@
          * @param {boolean} multiple
          */
         'selectOptionOnElement': function(element, value, multiple){
-            var option = null;
+            let option = null;
 
-            for (var i = 0; i < element.options.length; i++) {
+            for (let i = 0; i < element.options.length; i++) {
                 if (element.options[i].value === value) {
                     option = element.options[i];
                     break;
@@ -306,9 +313,9 @@
          * @param {*} value
          */
         'selectRadioByValue': function(element, value){
-            var name = element.name,
-                form = element.form,
-                input = null;
+            const name = element.name,
+                form = element.form;
+            let input = null;
 
             if (element.value === value) {
                 element.click();
@@ -320,8 +327,8 @@
             }
 
             if (form) {
-                var group = form[name];
-                for (var i = 0; i < group.length; i++) {
+                const group = form[name];
+                for (let i = 0; i < group.length; i++) {
                     if (group[i].value === value) {
                         input = group[i];
                     }
