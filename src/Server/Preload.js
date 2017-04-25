@@ -7,17 +7,15 @@
         DELAY_SCRIPT_RESPONSE = remote.getGlobal('DELAY_SCRIPT_RESPONSE'),
         electronWindow = remote.getCurrentWindow();
 
-    window.onerror = function (error) {
+    window.addEventListener('error', function (error) {
         setExecutionError(error);
         return true;
-    };
+    });
 
-    const oldOnUnload = window.onbeforeunload;
-    window.onbeforeunload = function (error) {
+    window.addEventListener('beforeunload', function () {
         setWindowUnloading(true);
-        if (oldOnUnload) oldOnUnload();
         setWindowIdName(electronWindow.id, null, location.href);
-    };
+    });
 
     let oldWndName = window.name || remote.getGlobal('newWindowName');
     window.__defineSetter__("name", function (name) {
