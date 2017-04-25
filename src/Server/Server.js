@@ -532,6 +532,7 @@ Electron.app.on('ready', function() {
                 Logger.debug('getCookie(%j)', name);
 
                 cookieResponse = null;
+
                 currWindow.webContents.session.cookies.get(
                     {
                         'url': currWindow.webContents.getURL(),
@@ -540,6 +541,29 @@ Electron.app.on('ready', function() {
                     function (error, cookies) {
                         cookieResponse = {
                             'get': cookies.length ? QueryString.unescape(cookies[0].value) : null,
+                            'error': errorToString(error)
+                        };
+                    }
+                );
+
+                cb();
+            },
+
+            getCookies: function (cb) {
+                Logger.debug('getCookies()');
+
+                cookieResponse = null;
+
+                currWindow.webContents.session.cookies.get(
+                    {
+                        'url': currWindow.webContents.getURL()
+                    },
+                    function (error, cookies) {
+                        cookieResponse = {
+                            'all': cookies.map(function (cookie) {
+                                cookie.value = QueryString.unescape(cookie.value);
+                                return cookie;
+                            }),
                             'error': errorToString(error)
                         };
                     }

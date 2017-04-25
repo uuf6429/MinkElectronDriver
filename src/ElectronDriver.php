@@ -291,7 +291,7 @@ class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
     /**
      * @inheritdoc
      */
-    public function getCookie($name)
+    public function getCookie($name = null)
     {
         $this->sendAndWaitWithoutResult('getCookie', [$name]);
         $result = $this->waitForAsyncResult('getCookieResponse');
@@ -307,6 +307,27 @@ class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
         }
 
         return $result['get'];
+    }
+
+    /**
+     * @return mixed
+     * @throws DriverException
+     */
+    public function getCookies()
+    {
+        $this->sendAndWaitWithoutResult('getCookies');
+        $result = $this->waitForAsyncResult('getCookieResponse');
+
+        if (!array_key_exists('all', $result) || !empty($result['error'])) {
+            throw new DriverException(
+                sprintf(
+                    'Cookies could not be get. Response: %s',
+                    json_encode($result)
+                )
+            );
+        }
+
+        return $result['all'];
     }
 
     /**
