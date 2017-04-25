@@ -473,7 +473,7 @@ Electron.app.on('ready', function() {
             switchToWindow: function (name, cb) {
                 Logger.debug('switchToWindow(%j)', name);
 
-                currWindow = findWindowByName(name);
+                currWindow = name === null ? mainWindow : findWindowByName(name);
 
                 cb();
             },
