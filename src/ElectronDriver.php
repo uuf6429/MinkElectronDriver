@@ -3,7 +3,6 @@
 namespace Behat\Mink\Driver;
 
 use Behat\Mink\Exception\DriverException;
-use Behat\Mink\Exception\UnsupportedDriverActionException;
 use uuf6429\DnodeSyncClient\Connection;
 use uuf6429\DnodeSyncClient\Dnode;
 use Psr\Log;

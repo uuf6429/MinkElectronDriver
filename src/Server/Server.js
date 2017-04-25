@@ -160,6 +160,10 @@ Electron.app.on('ready', function() {
     const findWindowByName = function (name) {
         const result = [];
 
+        if (name === 'current' || name === null) {
+            return currWindow;
+        }
+
         for (let id in windowIdNameMap) {
             if (windowIdNameMap[id] === name) {
                 const wnd = BrowserWindow.fromId(parseInt(id));
@@ -465,7 +469,7 @@ Electron.app.on('ready', function() {
             switchToWindow: function (name, cb) {
                 Logger.debug('switchToWindow(%j)', name);
 
-                currWindow = name === null ? mainWindow : findWindowByName(name);
+                currWindow = findWindowByName(name);
 
                 cb();
             },
@@ -655,7 +659,7 @@ Electron.app.on('ready', function() {
             resizeWindow: function (width, height, name, cb) {
                 Logger.debug('resizeWindow(%s, %s, %j)', width, height, name);
 
-                (name === null ? currWindow : findWindowByName(name)).setSize(width, height, false);
+                findWindowByName(name).setSize(width, height, false);
 
                 cb();
             },
@@ -663,7 +667,7 @@ Electron.app.on('ready', function() {
             maximizeWindow: function (name, cb) {
                 Logger.debug('maximizeWindow(%j)', name);
 
-                (name === null ? currWindow : findWindowByName(name)).maximize();
+                findWindowByName(name).maximize();
 
                 cb();
             },
