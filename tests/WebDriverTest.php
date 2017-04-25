@@ -227,4 +227,14 @@ class WebDriverTest extends TestCase
             "Maximize failed (screen height: $screenHeight, window height: $windowHeight, original: $windowOrigHeight)"
         );
     }
+
+    public function testOpeningNewWindow()
+    {
+        $this->assertEquals(['frame-1'], $this->driver->getWindowNames());
+
+        $this->assertSame(9, $this->driver->evaluateScript('4 + 5'));
+
+        $this->driver->executeScript('window.open();');
+        $this->assertEquals(['frame-1', 'frame-2'], $this->driver->getWindowNames());
+    }
 }

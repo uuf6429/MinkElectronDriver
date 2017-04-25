@@ -102,7 +102,8 @@ Electron.app.on('ready', function() {
         screenshotResponse = null,
         windowWillUnload = false,
         windowIdNameMap = {},
-        captureResponse = false;
+        captureResponse = false,
+        bindServerOnce;
 
     global.newWindowName = '';
     global.DELAY_SCRIPT_RESPONSE = '{%DelayElectronScriptResponse%}';
@@ -346,8 +347,14 @@ Electron.app.on('ready', function() {
                     ResponseManager.remove(window.id);
                 })
                 .on('did-finish-load', function () {
-                    Logger.info('Page finished loading.');
-                    pageVisited = true;
+                    if (bindServerOnce) {
+                        Logger.info('Main page loaded, binding sever...');
+                        bindServerOnce();
+                        bindServerOnce = null;
+                    } else {
+                        Logger.info('Page finished loading.');
+                        pageVisited = true;
+                    }
                 })
                 .on('did-fail-load', function (event, errorCode, errorDescription, validatedURL, isMainFrame) {
                     Logger.warn('Page failed to load (error %s): %s (validatedURL: "%s", isMainFrame: %s).', errorCode, errorDescription, validatedURL, isMainFrame ? 'yes' : 'no');
@@ -793,17 +800,24 @@ Electron.app.on('ready', function() {
         }
     );
 
-    let params = /(.*):(\d+)/.exec(process.argv[2]);
-    if (params) {
-        params = {
-            host: params[1],
-            port: params[2]
-        };
-    } else {
-        params = {
-            path: process.argv[2]
-        };
-    }
+    bindServerOnce = function() {
+        let params = /(.*):(\d+)/.exec(process.argv[2]);
+        if (params) {
+            params = {
+                host: params[1],
+                port: params[2]
+            };
+        } else {
+            params = {
+                path: process.argv[2]
+            };
+        }
 
-    server.listen(params);
+        server.listen(params);
+    };
+
+    /* This will trigger a chain of events that should eventually cause
+     * bindServerOnce to be called and cleared (to avoid being called again).
+     */
+    mainWindow.loadURL('about:blank;');
 });
