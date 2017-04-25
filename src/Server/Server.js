@@ -142,6 +142,10 @@ Electron.app.on('ready', function() {
     global.setWindowIdName = function (id, name, url) {
         const sId = id === null ? "" : id.toString();
 
+        if (name === '') {
+            name = 'frame-' + sId;
+        }
+
         if (name === null) {
             Logger.info('Unlinked window named "%s" from id "%s" for %s.', name, sId, url);
             if (windowIdNameMap[sId]) delete windowIdNameMap[sId];
