@@ -151,7 +151,11 @@ class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
     public function stop()
     {
         try {
-            $this->sendAndWaitWithoutResult('shutdown');
+            try {
+                $this->sendAndWaitWithoutResult('shutdown');
+            } catch (\Exception $ex) {
+                $this->logger->warning("Exception thrown while shutting down server: $ex");
+            }
 
             if ($this->dnodeClient) {
                 @$this->dnodeClient->close();
