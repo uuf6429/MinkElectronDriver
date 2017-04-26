@@ -7,9 +7,13 @@
         DELAY_SCRIPT_RESPONSE = remote.getGlobal('DELAY_SCRIPT_RESPONSE'),
         electronWindow = remote.getCurrentWindow();
 
+    window.onerror = function (messageOrEvent) {
+        setExecutionError(messageOrEvent);
+        return true;
+    };
+
     window.addEventListener('error', function (error) {
         setExecutionError(error);
-        return true;
     });
 
     window.addEventListener('beforeunload', function () {

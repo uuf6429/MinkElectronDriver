@@ -149,19 +149,6 @@ class WebDriverTest extends TestCase
         $this->assertSame($expectedResult, $this->driver->evaluateScript($expression));
     }
 
-    public function testCustomRequestHeader()
-    {
-        $this->driver->setRequestHeader('User-Agent', 'Special Agent 493030398600');
-        $this->driver->visit('https://httpbin.org/user-agent');
-        $this->assertContains('Special Agent 493030398600', $this->driver->getContent());
-    }
-
-    public function testCustomResponseHeader()
-    {
-        $this->driver->visit('https://httpbin.org/response-headers?X-Custom-Response=SomeResponseValue');
-        $this->assertContains('SomeResponseValue', json_encode($this->driver->getResponseHeaders()));
-    }
-
     /**
      * @return array
      */
@@ -189,6 +176,19 @@ class WebDriverTest extends TestCase
                 '$expectedException' => new DriverException('Could not evaluate script: Uncaught ReferenceError: someVar is not defined'),
             ],
         ];
+    }
+
+    public function testCustomRequestHeader()
+    {
+        $this->driver->setRequestHeader('User-Agent', 'Special Agent 493030398600');
+        $this->driver->visit('https://httpbin.org/user-agent');
+        $this->assertContains('Special Agent 493030398600', $this->driver->getContent());
+    }
+
+    public function testCustomResponseHeader()
+    {
+        $this->driver->visit('https://httpbin.org/response-headers?X-Custom-Response=SomeResponseValue');
+        $this->assertContains('SomeResponseValue', json_encode($this->driver->getResponseHeaders()));
     }
 
     public function testWindowNameTracking()
