@@ -1,28 +1,39 @@
 'use strict';
 
-if (process.argv.length < 4
-    || process.argv.length > 5
-    || !process.versions['electron']
-) {
-    const RED = "\e[31m",
-        YEL = "\e[33m",
-        GRN = "\e[32m",
-        RST = "\e[0m",
-        NL = "\n"
-    ;
+const NL = "\n",
+    RED = "\e[31m",
+    YEL = "\e[33m",
+    GRN = "\e[32m",
+    RST = "\e[0m",
+    showHelp = function(titleMessage, exitCode) {
+        if (titleMessage) {
+            process.stdout.write(NL + titleMessage + NL);
+        }
 
-    process.stdout.write(RED + 'Invalid invocation or wrong amount of arguments.' + RST + NL);
-    process.stdout.write(NL);
-    process.stdout.write(YEL + 'Usage:' + RST + NL);
-    process.stdout.write('  electron ElectronServer.js \x3Chost:port\x3E \x3Cshow|hide\x3E [log level]' + NL);
-    process.stdout.write(NL);
-    process.stdout.write(YEL + 'Parameters:' + RST + NL);
-    process.stdout.write('  ' + GRN + '\x3Chost:port\x3E' + RST + '   (Required) Specifies the IP / port the server should listen on.' + NL);
-    process.stdout.write('  ' + GRN + '\x3Cshow|hide\x3E' + RST + '   (Required) Show or hide Electron window.' + NL);
-    process.stdout.write('  ' + GRN + '[log level]' + RST + '   Sets logging verbosity (default is "debug").' + NL);
-    process.stdout.write('                See PSR-3 LogLevel constants for available values.' + NL);
+        process.stdout.write(NL);
+        process.stdout.write(YEL + 'Usage:' + RST + NL);
+        process.stdout.write('  electron ElectronServer.js \x3Chost:port\x3E \x3Cshow|hide\x3E [log level]' + NL);
+        process.stdout.write(NL);
+        process.stdout.write(YEL + 'Parameters:' + RST + NL);
+        process.stdout.write('  ' + GRN + '\x3Chost:port\x3E' + RST + '   (Required) Specifies the IP / port the server should listen on.' + NL);
+        process.stdout.write('  ' + GRN + '\x3Cshow|hide\x3E' + RST + '   (Required) Show or hide Electron window.' + NL);
+        process.stdout.write('  ' + GRN + '[log level]' + RST + '   Sets logging verbosity (default is "debug").' + NL);
+        process.stdout.write('                See PSR-3 LogLevel constants for available values.' + NL);
 
-    process.exit(1);
+        process.exit(exitCode || 0);
+    }
+;
+
+if (process.argv.length === 2 || (process.argv.length === 3 && ['/?', '-h', 'help', '--help'].indexOf(process.argv[2]) !== -1)) {
+    showHelp();
+}
+
+if (!process.versions['electron']) {
+    showHelp(RED + 'Error: must be executed through Electron not Node.' + RST, 1);
+}
+
+if (process.argv.length < 4 || process.argv.length > 5) {
+    showHelp(RED + 'Error: Invalid number of arguments.' + RST, 1);
 }
 
 const Electron = require('electron'),

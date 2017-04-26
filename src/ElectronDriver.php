@@ -81,7 +81,9 @@ class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
             list($clientAddress, $serverAddress) = $this->buildClientServerAddress();
 
             if ($this->autoStartServer) {
-                $this->electronProcess = new Process($this->buildServerCmd($serverAddress), dirname(__DIR__));
+                $command = $this->buildServerCmd($serverAddress);
+
+                $this->electronProcess = new Process($command, dirname(__DIR__));
                 $this->electronProcess->setTimeout(null);
 
                 if ($this->logger instanceof Log\NullLogger) {
@@ -722,6 +724,14 @@ class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
      */
     protected function buildServerCmd($serverAddress)
     {
+        $nodePath = 'node';
+
+        $xvfbPath = __DIR__
+            . DIRECTORY_SEPARATOR . '..'
+            . DIRECTORY_SEPARATOR . 'node_modules'
+            . DIRECTORY_SEPARATOR . '.bin'
+            . DIRECTORY_SEPARATOR . 'xvfb-maybe';
+
         $electronPath = __DIR__
             . DIRECTORY_SEPARATOR . '..'
             . DIRECTORY_SEPARATOR . 'node_modules'
@@ -733,12 +743,14 @@ class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
             . DIRECTORY_SEPARATOR . 'Server.js';
 
         return sprintf(
-            '%s %s %s %s %s',
-            escapeshellarg($electronPath),
-            escapeshellarg($serverScript),
+            '%s %s -a -s "-screen 0, 1024x768x24" -- %s %s %s %s %s',
+            escapeshellarg($nodePath),
+            escapeshellarg(realpath($xvfbPath)),
+            escapeshellarg(realpath($electronPath)),
+            escapeshellarg(realpath($serverScript)),
             escapeshellarg($serverAddress),
             $this->showElectron ? 'show' : 'hide',
-            $this->logLevel
+            escapeshellarg($this->logLevel)
         );
     }
 
