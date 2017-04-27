@@ -35,7 +35,7 @@ class ElectronFileLogger extends AbstractLogger
      * @param string $fileName
      * @param bool $append
      */
-    public function __construct($fileName, $append = true)
+    public function __construct($fileName, $append = false)
     {
         if (!is_dir(dirname($fileName))) {
             mkdir(dirname($fileName), 0777, true);

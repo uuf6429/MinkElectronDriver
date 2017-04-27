@@ -37,6 +37,15 @@ class WebDriverTest extends TestCase
         parent::tearDown();
     }
 
+    public function onNotSuccessfulTest($e)
+    {
+        if ($e instanceof UnsupportedDriverActionException) {
+            $this->markTestSkipped($e);
+        }
+
+        parent::onNotSuccessfulTest($e);
+    }
+
     public function testNavigation()
     {
         $this->driver->visit('https://bing.com/');
@@ -212,11 +221,7 @@ class WebDriverTest extends TestCase
 
         $windowOrigHeight = $this->driver->evaluateScript('window.outerHeight');
 
-        try {
-            $this->driver->maximizeWindow();
-        } catch (UnsupportedDriverActionException $ex) {
-            $this->markTestSkipped($ex);
-        }
+        $this->driver->maximizeWindow();
         $this->driver->wait(1000, 'false');
 
         $screenHeight = $this->driver->evaluateScript('screen.availHeight');

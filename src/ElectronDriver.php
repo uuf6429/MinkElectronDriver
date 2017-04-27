@@ -129,7 +129,7 @@ class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
 
                         throw new \RuntimeException("Gave up connecting to electron server after $maxTries tries:\n$ex", 0, $ex);
                     }
-                    usleep(500000);
+                    sleep(1);
                 }
             }
         } catch (\Exception $ex) {
