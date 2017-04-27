@@ -3,6 +3,7 @@
         setExecutionError = remote.getGlobal('setExecutionError'),
         setWindowUnloading = remote.getGlobal('setWindowUnloading'),
         setWindowIdName = remote.getGlobal('setWindowIdName'),
+        getWindowNameFromId = remote.getGlobal('getWindowNameFromId'),
         setFileFromScript = remote.getGlobal('setFileFromScript'),
         DELAY_SCRIPT_RESPONSE = remote.getGlobal('DELAY_SCRIPT_RESPONSE'),
         electronWindow = remote.getCurrentWindow();
@@ -21,15 +22,13 @@
         setWindowIdName(electronWindow.id, null, location.href);
     });
 
-    let oldWndName = window.name || remote.getGlobal('newWindowName');
+    setWindowIdName(electronWindow.id, (window.name || remote.getGlobal('newWindowName')), location.href);
     window.__defineSetter__("name", function (name) {
-        oldWndName = name;
         setWindowIdName(electronWindow.id, name, location.href);
     });
     window.__defineGetter__("name", function () {
-        return oldWndName;
+        return getWindowNameFromId(electronWindow.id);
     });
-    setWindowIdName(electronWindow.id, oldWndName, location.href);
 
     window.Electron = {
         'syn': require('syn'),

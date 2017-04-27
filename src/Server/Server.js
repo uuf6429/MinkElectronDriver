@@ -112,6 +112,7 @@ Electron.app.on('ready', function() {
         cookieResponse = null,
         screenshotResponse = null,
         windowWillUnload = false,
+        /** @type {Object.<string, string>} */
         windowIdNameMap = {},
         captureResponse = false,
         bindServerOnce;
@@ -125,6 +126,7 @@ Electron.app.on('ready', function() {
      */
     global.setExecutionError = function (error) {
         Logger.error('Script evaluation failed internally: %s', errorToString(error));
+
         executeResponse = {'error': errorToString(error)};
     };
 
@@ -147,24 +149,34 @@ Electron.app.on('ready', function() {
 
     /**
      *
-     * @param {integer} id
-     * @param {string} name
-     * @param {string} url
+     * @param {Number} id
+     * @param {String} name
+     * @param {String} url
      */
     global.setWindowIdName = function (id, name, url) {
         const sId = id === null ? "" : id.toString();
 
         if (name === '') {
-            name = 'frame-' + sId;
+            name = 'electron_window_' + sId;
         }
 
         if (name === null) {
-            Logger.info('Unlinked window named "%s" from id "%s" for %s.', name, sId, url);
+            Logger.info('Unlinked window named %j from id %j for %j.', name, sId, url);
             if (windowIdNameMap[sId]) delete windowIdNameMap[sId];
         } else {
-            Logger.info('Linked window named "%s" with id "%s" for %s.', name, sId, url);
+            Logger.info('Linked window named %j with id %j for %j.', name, sId, url);
             windowIdNameMap[sId] = name;
         }
+    };
+
+    /**
+     *
+     * @param {Number} id
+     */
+    global.getWindowNameFromId = function (id) {
+        const sId = id === null ? "" : id.toString();
+
+        return windowIdNameMap[sId];
     };
 
     /**
@@ -181,7 +193,7 @@ Electron.app.on('ready', function() {
         }
 
         for (let id in windowIdNameMap) {
-            if (windowIdNameMap[id] === name) {
+            if (windowIdNameMap.hasOwnProperty(id) && windowIdNameMap[id] === name) {
                 const wnd = BrowserWindow.fromId(parseInt(id));
                 if (wnd) result.push(wnd);
             }
@@ -339,6 +351,25 @@ Electron.app.on('ready', function() {
          * @param {Electron.BrowserWindow} window
          */
         function (event, window) {
+            const windowId = window.id;
+
+            Logger.debug('Browser window created with id %j.', windowId);
+
+            window
+                .on('closed', function () { // important: we can't use window anymore in here!
+                    if (windowId) {
+                        Logger.info('Window "%s" (id %d) has been closed.', windowIdNameMap[windowId.toString()] || '', windowId);
+
+                        pageVisited = true;
+                        captureResponse = false;
+                        delete windowIdNameMap[windowId.toString()];
+                        ResponseManager.remove(windowId);
+                    } else {
+                        Logger.warn('Browser window with id %j was closed.', windowId);
+                    }
+                })
+            ;
+
             window.webContents
                 .on('login', function (event, request, authInfo, callback) {
                     if (auth.user !== false) {
@@ -352,10 +383,9 @@ Electron.app.on('ready', function() {
                     global.newWindowName = frameName;
                     setupWindowOptions(options);
                 })
-                .on('closed', function () {
-                    Logger.info('Window "%s" (id %d) has been closed.', windowIdNameMap[window.id] || '', window.id);
-                    delete windowIdNameMap[window.id];
-                    ResponseManager.remove(window.id);
+                .on('will-navigate', function (event, url) {
+                    Logger.debug('Event "will-navigate" triggered for url %j.', url);
+                    global.setWindowUnloading(true);
                 })
                 .on('did-finish-load', function () {
                     if (bindServerOnce) {

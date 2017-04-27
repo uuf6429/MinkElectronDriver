@@ -19,7 +19,7 @@ class ElectronConfig extends AbstractConfig
 
     protected function __construct()
     {
-        $this->logger = new ElectronFileLogger(__DIR__ . '/../tmp/output.log');
+        $this->logger = new ElectronFileLogger(__DIR__ . '/../tmp/output.log', false);
     }
 
     /**

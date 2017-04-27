@@ -233,13 +233,22 @@ class WebDriverTest extends TestCase
         );
     }
 
-    public function testOpeningNewWindow()
+    public function testNewWindow()
     {
-        $this->assertEquals(['frame-1'], $this->driver->getWindowNames());
+        $this->assertEquals(['electron_window_1'], $this->driver->getWindowNames());
 
         $this->assertSame(9, $this->driver->evaluateScript('4 + 5'));
 
         $this->driver->executeScript('window.open();');
-        $this->assertEquals(['frame-1', 'frame-2'], $this->driver->getWindowNames());
+        $this->assertEquals(['electron_window_1', 'electron_window_2'], $this->driver->getWindowNames());
+
+        $this->driver->switchToWindow('electron_window_2');
+        $this->assertEquals('electron_window_2', $this->driver->getWindowName());
+
+        $this->driver->visit('http://google.com');
+        $this->assertEquals('electron_window_2', $this->driver->getWindowName());
+
+        $this->driver->executeScript('window.close();');
+        $this->assertEquals(['electron_window_1'], $this->driver->getWindowNames());
     }
 }
