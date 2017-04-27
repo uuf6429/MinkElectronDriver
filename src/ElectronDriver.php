@@ -724,8 +724,6 @@ class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
      */
     protected function buildServerCmd($serverAddress)
     {
-        $nodePath = 'node';
-
         $xvfbPath = __DIR__
             . DIRECTORY_SEPARATOR . '..'
             . DIRECTORY_SEPARATOR . 'node_modules'
@@ -743,8 +741,7 @@ class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
             . DIRECTORY_SEPARATOR . 'Server.js';
 
         return sprintf(
-            '%s %s -a -s "-screen 0, 1024x768x24" -- %s %s %s %s %s',
-            escapeshellarg($nodePath),
+            '%s -a -s "-screen 0, 1024x768x24" -- %s %s %s %s %s',
             escapeshellarg(realpath($xvfbPath)),
             escapeshellarg(realpath($electronPath)),
             escapeshellarg(realpath($serverScript)),
