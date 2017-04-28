@@ -42,7 +42,8 @@ const Electron = require('electron'),
     DNode = require('dnode'),
     QueryString = require('querystring'),
     Logger = require('./Logger.js'),
-    ResponseManager = require('./ResponseManager.js');
+    ResponseManager = require('./ResponseManager.js'),
+    FrameManager = require('./FrameManager.js');
 
 const showWindow = process.argv[3] === 'show';
 Logger.LogLevel = process.argv[4] || Logger.DEBUG;
