@@ -148,7 +148,7 @@ Electron.app.on('ready', function() {
     };
 
     /**
-     *
+     * Set window name for the particular electron id (url extra info).
      * @param {Number} id
      * @param {String} name
      * @param {String} url
@@ -170,7 +170,7 @@ Electron.app.on('ready', function() {
     };
 
     /**
-     *
+     * Returns window name given electron id.
      * @param {Number} id
      */
     global.getWindowNameFromId = function (id) {
@@ -357,16 +357,12 @@ Electron.app.on('ready', function() {
 
             window
                 .on('closed', function () { // important: we can't use window anymore in here!
-                    if (windowId) {
-                        Logger.info('Window "%s" (id %d) has been closed.', windowIdNameMap[windowId.toString()] || '', windowId);
+                    Logger.info('Window "%s" (id %j) has been closed.', windowIdNameMap[windowId.toString()] || '', windowId);
 
-                        pageVisited = true;
-                        captureResponse = false;
-                        delete windowIdNameMap[windowId.toString()];
-                        ResponseManager.remove(windowId);
-                    } else {
-                        Logger.warn('Browser window with id %j was closed.', windowId);
-                    }
+                    pageVisited = true;
+                    captureResponse = false;
+                    delete windowIdNameMap[windowId.toString()];
+                    ResponseManager.remove(windowId);
                 })
             ;
 
