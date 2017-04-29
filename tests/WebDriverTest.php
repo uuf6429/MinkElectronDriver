@@ -177,12 +177,12 @@ class WebDriverTest extends TestCase
             'syntax error' => [
                 '$expression' => '*grd',
                 '$expectedResult' => null,
-                '$expectedException' => new DriverException('Could not evaluate script: Uncaught SyntaxError: Unexpected token *'),
+                '$expectedException' => new DriverException('Could not evaluate script: SyntaxError: Unexpected token *'),
             ],
             'undefined variable' => [
                 '$expression' => 'someVar + 1',
                 '$expectedResult' => null,
-                '$expectedException' => new DriverException('Could not evaluate script: Uncaught ReferenceError: someVar is not defined'),
+                '$expectedException' => new DriverException('Could not evaluate script: ReferenceError: someVar is not defined'),
             ],
         ];
     }

@@ -8,13 +8,9 @@
         DELAY_SCRIPT_RESPONSE = remote.getGlobal('DELAY_SCRIPT_RESPONSE'),
         electronWebContents = remote.getCurrentWebContents();
 
-    window.onerror = function (messageOrEvent, source, lineno, colno, error) {
-        setExecutionError(error || messageOrEvent);
-        return true;
-    };
-
     window.addEventListener('error', function (event) {
-        setExecutionError(event.error || event.message);
+        const hasErrorObject = event.error && event.error.toString() !== '{}';
+        setExecutionError(hasErrorObject ? event.error.toString() : event.message);
     });
 
     window.addEventListener('beforeunload', function () {
