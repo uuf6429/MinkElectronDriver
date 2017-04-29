@@ -105,6 +105,7 @@ Electron.app.on('ready', function() {
 
     let mainWindow = new BrowserWindow(setupWindowOptions({})),
         currWindow = mainWindow,
+        currWindowId = currWindow.webContents.id,
         pageVisited = null,
         hdrs = {},
         auth = {'user': false, 'pass': null},
@@ -172,11 +173,16 @@ Electron.app.on('ready', function() {
     /**
      * Returns window name given electron id.
      * @param {Number} id
+     * @returns {String|null}
      */
     global.getWindowNameFromId = function (id) {
         const sId = id === null ? "" : id.toString();
 
-        return windowIdNameMap[sId];
+        if (!windowIdNameMap[sId] && !Electron.BrowserWindow.fromId(id)) {
+            Logger.warn('Cannot retrieve name of window %j since window is not created yet.', id);
+        }
+
+        return windowIdNameMap[sId] || null;
     };
 
     /**
@@ -213,19 +219,19 @@ Electron.app.on('ready', function() {
      * Runs some code for an element retrieved from RemoteDebug with an XPath query.
      * It involves a hack: since RD does not support querying via XPath, we assign a random element id and use it
      * to find the element via RD. Afterwards, we restore the original element id (if there was any).
-     * @param {Electron.BrowserWindow} window
+     * @param {Electron.WebContents} webContents
      * @param {string} xpath
      * @param {function(element,function())} onSuccess
      * @param {function(Error,function())} onFailure
      */
-    const withElementByXpath = function (window, xpath, onSuccess, onFailure) {
+    const withElementByXpath = function (webContents, xpath, onSuccess, onFailure) {
         const jsElementVarName = 'Electron.tmpElement',
             randomElementId = 'electronElement' + Math.round(Math.random() * 100000),
             restoreElementId = function () {
-                return currWindow.webContents.executeJavaScript(jsElementVarName + '.id = Electron.tmpOldElementId;');
+                return webContents.executeJavaScript(jsElementVarName + '.id = Electron.tmpOldElementId;');
             };
 
-        currWindow.webContents
+        webContents
             .executeJavaScript(
                 'var xpath = ' + JSON.stringify(xpath) + ';\
                 ' + jsElementVarName + ' = document.evaluate(xpath, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;\
@@ -234,14 +240,14 @@ Electron.app.on('ready', function() {
                 ' + jsElementVarName + '.id = ' + JSON.stringify(randomElementId) + ';'
             )
             .then(function () {
-                currWindow.webContents.debugger.sendCommand('DOM.getDocument', {}, function (error, res) {
+                webContents.debugger.sendCommand('DOM.getDocument', {}, function (error, res) {
                     if (!isEmptyObject(error)) {
                         const msg = 'Could not get document from RemoteDebug: ' + errorToString(error);
                         onFailure(new Error(msg), restoreElementId);
                         return;
                     }
 
-                    currWindow.webContents.debugger.sendCommand('DOM.querySelector', {
+                    webContents.debugger.sendCommand('DOM.querySelector', {
                         nodeId: res.root.nodeId,
                         selector: '#' + randomElementId
                     }, function (error, res) {
@@ -293,55 +299,60 @@ Electron.app.on('ready', function() {
     };
 
     /**
-     * @param {int} windowId
+     * @param {int} webContentId
      * @param {string} xpath
      * @param {string} value
      * @todo This is a potential security threat. Fix by allowing only registered file paths to be uploaded.
      */
-    global.setFileFromScript = function (windowId, xpath, value) {
-        Logger.debug('setFileFromScript(%j, %j, %j)', windowId, xpath, value);
+    global.setFileFromScript = function (webContentId, xpath, value) {
+        Logger.debug('setFileFromScript(%j, %j, %j)', webContentId, xpath, value);
 
-        executeResponse = null;
-        const window = BrowserWindow.fromId(parseInt(windowId));
-        withElementByXpath(
-            window,
-            xpath,
-            function (element, onDone) {
-                window.webContents.debugger.sendCommand('DOM.setFileInputFiles', {
-                    nodeId: element.nodeId,
-                    files: [value]
-                }, function (error) {
-                    if (isEmptyObject(error)) {
-                        onDone()
-                            .then(function(){
-                                window.webContents
-                                    .executeJavaScript('Electron.syn.trigger(' + element.jsElementVarName + ', "change", {});')
-                                    .then(function () {
-                                        Logger.info('Value of file input field set successfully successfully.');
-                                        executeResponse = {'result': true};
-                                    })
-                                    .catch(function (error) {
-                                        Logger.error('Could trigger change event: %s', errorToString(error));
-                                        executeResponse = {'error': errorToString(error)};
-                                    });
-                            })
-                            .catch(function (error) {
-                                Logger.error('Could perform RemoteDebug cleanup: %s', errorToString(error));
-                                executeResponse = {'error': errorToString(error)};
-                            });
-                    } else {
-                        Logger.error('Could not set file value from RemoteDebug: %s', errorToString(error));
-                        executeResponse = {'error': errorToString(error)};
-                        onDone();
-                    }
-                });
-            },
-            function (error, onDone) {
-                Logger.error('Could not set file field value: %s', errorToString(error));
-                executeResponse = {'error': errorToString(error)};
-                onDone();
-            }
-        );
+        try {
+            executeResponse = null;
+            const webContents = Electron.webContents.fromId(parseInt(webContentId));
+
+            withElementByXpath(
+                webContents,
+                xpath,
+                function (element, onDone) {
+                    webContents.debugger.sendCommand('DOM.setFileInputFiles', {
+                        nodeId: element.nodeId,
+                        files: [value]
+                    }, function (error) {
+                        if (isEmptyObject(error)) {
+                            onDone()
+                                .then(function () {
+                                    webContents
+                                        .executeJavaScript('Electron.syn.trigger(' + element.jsElementVarName + ', "change", {});')
+                                        .then(function () {
+                                            Logger.info('Value of file input field set successfully successfully.');
+                                            executeResponse = {'result': true};
+                                        })
+                                        .catch(function (error) {
+                                            Logger.error('Could trigger change event: %s', errorToString(error));
+                                            executeResponse = {'error': errorToString(error)};
+                                        });
+                                })
+                                .catch(function (error) {
+                                    Logger.error('Could perform RemoteDebug cleanup: %s', errorToString(error));
+                                    executeResponse = {'error': errorToString(error)};
+                                });
+                        } else {
+                            Logger.error('Could not set file value from RemoteDebug: %s', errorToString(error));
+                            executeResponse = {'error': errorToString(error)};
+                            onDone();
+                        }
+                    });
+                },
+                function (error, onDone) {
+                    Logger.error('Could not set file field value: %s', errorToString(error));
+                    executeResponse = {'error': errorToString(error)};
+                    onDone();
+                }
+            );
+        } catch (error) {
+            Logger.error('Global method "setFileFromScript" failed: %s', errorToString(error));
+        }
     };
 
     Electron.app.on(
@@ -351,16 +362,19 @@ Electron.app.on('ready', function() {
          * @param {Electron.BrowserWindow} window
          */
         function (event, window) {
-            const windowId = window.id;
+            const windowId = window.webContents.id;
 
-            Logger.debug('Browser window created with id %j.', windowId);
+            Logger.info('Browser window created with id %j.', windowId);
 
             window
                 .on('closed', function () { // important: we can't use window anymore in here!
                     Logger.info('Window "%s" (id %j) has been closed.', windowIdNameMap[windowId.toString()] || '', windowId);
 
-                    pageVisited = true;
-                    captureResponse = false;
+                    if (windowId === currWindowId) {
+                        pageVisited = true;
+                        captureResponse = false;
+                    }
+
                     delete windowIdNameMap[windowId.toString()];
                     ResponseManager.remove(windowId);
                 })
@@ -410,7 +424,7 @@ Electron.app.on('ready', function() {
 
                 window.webContents.debugger.on('message', function (event, message, params) {
                     if (captureResponse && message === 'Network.responseReceived' && params.type === 'Document') {
-                        retrieveDebuggerResponseBody(window.webContents.debugger, params, window.id, 10);
+                        retrieveDebuggerResponseBody(window.webContents.debugger, params, window.webContents.id, 10);
                         captureResponse = false;
                     } else {
                         Logger.debug('Discarded "%s" event.', message);
@@ -435,7 +449,8 @@ Electron.app.on('ready', function() {
 
                 hdrs = {};
                 auth = {'user': false, 'pass': ''};
-
+                currWindow = mainWindow;
+                currWindowId = currWindow.webContents.id;
                 BrowserWindow.getAllWindows().forEach(function (window) {
                     window.webContents.session.clearStorageData();
                     window.webContents.session.clearAuthCache({type: 'password'});
@@ -449,7 +464,7 @@ Electron.app.on('ready', function() {
 
                 pageVisited = null;
                 captureResponse = true;
-                ResponseManager.remove(currWindow.id);
+                ResponseManager.remove(currWindow.webContents.id);
 
                 cb();
             },
@@ -458,7 +473,7 @@ Electron.app.on('ready', function() {
                 let extraHeaders = '';
                 for (let key in hdrs) extraHeaders += key + ': ' + hdrs[key] + '\n';
 
-                Logger.debug('visit(%j) (extraHeaders: %s)', url, extraHeaders.replace(/\n/g, '\\n') || 'none');
+                Logger.debug('visit(%j) (winId: %d, extraHeaders: %s)', url, currWindow.webContents.id, extraHeaders.replace(/\n/g, '\\n') || 'none');
 
                 currWindow.loadURL(url, {'extraHeaders': extraHeaders});
 
@@ -518,6 +533,7 @@ Electron.app.on('ready', function() {
                 Logger.debug('switchToWindow(%j)', name);
 
                 currWindow = name === null ? mainWindow : findWindowByName(name);
+                currWindowId = currWindow.webContents.id;
 
                 cb();
             },
@@ -535,10 +551,10 @@ Electron.app.on('ready', function() {
             },
 
             getResponseHeaders: function (cb) {
-                const response = ResponseManager.get(currWindow.id);
+                const response = ResponseManager.get(currWindow.webContents.id);
                 const lastHeaders = (response || {}).headers || null;
 
-                Logger.debug('getResponseHeaders() (winId: %d) => %j', currWindow.id, lastHeaders);
+                Logger.debug('getResponseHeaders() (winId: %d) => %j', currWindow.webContents.id, lastHeaders);
 
                 cb(lastHeaders);
             },
@@ -623,25 +639,29 @@ Electron.app.on('ready', function() {
             },
 
             getStatusCode: function (cb) {
-                const response = ResponseManager.get(currWindow.id);
+                const response = ResponseManager.get(currWindow.webContents.id);
                 const lastStatus = (response || {}).status || null;
 
-                Logger.debug('getStatusCode() (winId: %d) => %s', currWindow.id, lastStatus);
+                Logger.debug('getStatusCode() (winId: %d) => %s', currWindow.webContents.id, lastStatus);
 
                 cb(lastStatus);
             },
 
             getContent: function (cb) {
-                const response = ResponseManager.get(currWindow.id);
+                const response = ResponseManager.get(currWindow.webContents.id);
                 const lastContent = {content: ((response || {}).content || null)};
 
-                Logger.debug('getContent() (winId: %d) => %j', currWindow.id, lastContent);
+                Logger.debug('getContent() (winId: %d) => %j', currWindow.webContents.id, lastContent);
 
                 cb(lastContent);
             },
 
             evaluateScript: function (script, cb) {
-                Logger.debug('evaluateScript(%s) (winId: %d)', script, currWindow.id);
+                Logger.debug('evaluateScript(%s) (winId: %d)', script, currWindow.webContents.id);
+
+                if (currWindow.webContents.isWaitingForResponse()) {
+                    Logger.warn('Window is corrently waiting for a response; script execution may fail.');
+                }
 
                 executeResponse = null;
 
@@ -755,7 +775,7 @@ Electron.app.on('ready', function() {
                  */
 
                 withElementByXpath(
-                    currWindow,
+                    currWindow.webContents,
                     xpath,
                     function (element, onDone) {
                         currWindow.webContents.debugger.sendCommand('DOM.setFileInputFiles', {

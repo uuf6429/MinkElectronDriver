@@ -6,35 +6,36 @@
         getWindowNameFromId = remote.getGlobal('getWindowNameFromId'),
         setFileFromScript = remote.getGlobal('setFileFromScript'),
         DELAY_SCRIPT_RESPONSE = remote.getGlobal('DELAY_SCRIPT_RESPONSE'),
-        electronWindow = remote.getCurrentWindow();
+        electronWebContents = remote.getCurrentWebContents();
 
-    window.onerror = function (messageOrEvent) {
-        setExecutionError(messageOrEvent);
+    window.onerror = function (messageOrEvent, source, lineno, colno, error) {
+        setExecutionError(error || messageOrEvent);
         return true;
     };
 
-    window.addEventListener('error', function (error) {
-        setExecutionError(error);
+    window.addEventListener('error', function (event) {
+        setExecutionError(event.error || event.message);
     });
 
     window.addEventListener('beforeunload', function () {
         setWindowUnloading(true);
-        setWindowIdName(electronWindow.id, null, location.href);
+        setWindowIdName(electronWebContents.id, null, location.href);
     });
 
-    setWindowIdName(electronWindow.id, (window.name || remote.getGlobal('newWindowName')), location.href);
+    setWindowIdName(electronWebContents.id, window.name || remote.getGlobal('newWindowName') || '', location.href);
     window.__defineSetter__("name", function (name) {
-        setWindowIdName(electronWindow.id, name, location.href);
+        setWindowIdName(electronWebContents.id, name || '', location.href);
     });
     window.__defineGetter__("name", function () {
-        return getWindowNameFromId(electronWindow.id);
+        return getWindowNameFromId(electronWebContents.id);
     });
 
     window.Electron = {
         'syn': require('syn'),
 
         'setFileFromScript': function (xpath, value) {
-            setFileFromScript(electronWindow.id, xpath, value);
+            setFileFromScript(electronWebContents.id, xpath, value);
+
             return DELAY_SCRIPT_RESPONSE;
         },
 
@@ -160,7 +161,7 @@
          * @param {*} value
          * @returns {*}
          */
-        'setValue': function(xpath, element, value){
+        'setValue': function (xpath, element, value) {
             switch (true) {
                 case element.tagName === 'SELECT':
                     if (value && value.constructor.name === 'Array') {
@@ -206,7 +207,7 @@
         /**
          * @param {HTMLInputElement|HTMLSelectElement} element
          */
-        'deselectAllOptions': function(element) {
+        'deselectAllOptions': function (element) {
             if (!element || element.tagName !== 'SELECT')
                 throw new Error('Element is not a valid select element.');
 
@@ -219,14 +220,14 @@
          * @param {HTMLInputElement} element
          * @returns {boolean}
          */
-        'isSelected': function(element){
+        'isSelected': function (element) {
             if (!element || element.tagName !== 'OPTION')
                 throw new Error('Element is not a valid option element.');
 
             let select;
             if (element.parentNode.tagName === 'SELECT') { // select -> option
                 select = element.parentNode;
-            } else if(element.parentNode.parentNode.tagName === 'SELECT') { // select -> optgroup -> option
+            } else if (element.parentNode.parentNode.tagName === 'SELECT') { // select -> optgroup -> option
                 select = element.parentNode.parentNode;
             } else {
                 throw new Error('Could not find a containing select element.');
@@ -239,7 +240,7 @@
          * @param {HTMLInputElement} element
          * @returns {boolean}
          */
-        'isChecked': function(element){
+        'isChecked': function (element) {
             if (!element || !((element.type === 'checkbox') || (element.type === 'radio')))
                 throw new Error('Element is not a valid checkbox or radio button.');
 
@@ -251,7 +252,7 @@
          * @param {boolean} checked
          * @returns {boolean}
          */
-        'setChecked': function(element, checked){
+        'setChecked': function (element, checked) {
             if (!element || !((element.type === 'checkbox') || (element.type === 'radio')))
                 throw new Error('Element is not a valid checkbox or radio button.');
 
@@ -263,7 +264,7 @@
          * @param {*} value
          * @param {boolean} multiple
          */
-        'selectOptionOnElement': function(element, value, multiple){
+        'selectOptionOnElement': function (element, value, multiple) {
             let option = null;
 
             for (let i = 0; i < element.options.length; i++) {
@@ -277,7 +278,7 @@
                 throw new Error('Select box "' + (element.name || element.id) + '" does not have an option "' + value + '".');
             }
 
-            if (multiple || !element.multiple){
+            if (multiple || !element.multiple) {
                 if (!option.selected) {
                     option.selected = true;
                 }
@@ -294,7 +295,7 @@
          * @param {*} value
          * @param {boolean} multiple
          */
-        'selectOption': function(element, value, multiple){
+        'selectOption': function (element, value, multiple) {
             if (element.tagName === 'INPUT' && element.type === 'radio') {
                 this.selectRadioByValue(element, value);
                 return;
@@ -312,7 +313,7 @@
          * @param {HTMLInputElement} element
          * @param {*} value
          */
-        'selectRadioByValue': function(element, value){
+        'selectRadioByValue': function (element, value) {
             const name = element.name,
                 form = element.form;
             let input = null;
@@ -344,7 +345,7 @@
             input.click();
         },
 
-        'getElementByXPath': function(xpath){
+        'getElementByXPath': function (xpath) {
             return document.evaluate(xpath, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
         }
     }
