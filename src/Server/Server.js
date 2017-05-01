@@ -103,9 +103,9 @@ Electron.app.on('ready', function() {
         return result;
     };
 
-    let mainWindow = new BrowserWindow(setupWindowOptions({})),
-        currWindow = mainWindow,
-        currWindowId = currWindow.webContents.id,
+    let mainWindow = null,
+        currWindow = null,
+        currWindowId = null,
         pageVisited = null,
         hdrs = {},
         auth = {'user': false, 'pass': null},
@@ -437,7 +437,10 @@ Electron.app.on('ready', function() {
             }
         }
     );
-    Electron.app.emit('browser-window-created', null, mainWindow);
+
+    mainWindow = new BrowserWindow(setupWindowOptions({}));
+    currWindow = mainWindow;
+    currWindowId = currWindow.webContents.id;
 
     Logger.info('Starting up server...');
 
