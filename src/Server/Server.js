@@ -68,6 +68,11 @@ Electron.app.on('ready', function() {
      */
     const setupWindowOptions = function (options) {
         options.show = showWindow;
+
+        options.x = 0;
+        options.y = 0;
+        options.enableLargerThanScreen = true;
+
         options.webPreferences = options.webPreferences || {};
         options.webPreferences.devTools = showWindow;
         options.webPreferences.nodeIntegration = false;
@@ -708,24 +713,39 @@ Electron.app.on('ready', function() {
 
                 screenshotResponse = null;
 
-                const tryTakingScreenshot = function (tries) {
-                    currWindow.capturePage(currWindow.getContentBounds(), function (image) {
-                        const data = image.toPNG().toString('base64');
+                const origBounds = currWindow.getBounds();
 
-                        if (data) {
-                            screenshotResponse = {'base64data': data};
-                        } else if (tries > 0) {
-                            Logger.warn('Failed to take screen shot, trying again (try %d).', tries);
+                currWindow.webContents
+                    .executeJavaScript('({' +
+                        'x: 0, y: 0,' +
+                        'width: document.body.scrollWidth + (window.outerWidth - window.innerWidth),' +
+                        'height: document.body.scrollHeight + (window.outerHeight - window.innerHeight)' +
+                        '})', false, function (tempSize) {
+                        currWindow.setBounds(tempSize, false);
+
+                        const tryTakingScreenshot = function (tries) {
                             setTimeout(function () {
-                                tryTakingScreenshot(tries - 1);
-                            }, 200);
-                        } else {
-                            screenshotResponse = {'error': 'Gave up trying to take screen shot after several tries.'};
-                        }
-                    });
-                };
+                                currWindow.capturePage(
+                                    function (image) {
+                                        const data = image.toPNG().toString('base64');
 
-                tryTakingScreenshot(5);
+                                        if (data) {
+                                            screenshotResponse = {'base64data': data};
+                                            currWindow.setBounds(origBounds, false);
+                                        } else if (tries > 0) {
+                                            Logger.warn('Failed to take screen shot, trying again (try %d).', tries);
+                                            tryTakingScreenshot(tries - 1);
+                                        } else {
+                                            screenshotResponse = {'error': 'Gave up trying to take screen shot after several tries.'};
+                                            currWindow.setBounds(origBounds, false);
+                                        }
+                                    }
+                                );
+                            }, 200);
+                        };
+
+                        tryTakingScreenshot(5);
+                    });
 
                 cb();
             },
