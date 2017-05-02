@@ -663,7 +663,7 @@ Electron.app.on('ready', function() {
                 Logger.debug('evaluateScript(%s) (winId: %d)', script, currWindow.webContents.id);
 
                 if (currWindow.webContents.isWaitingForResponse()) {
-                    Logger.warn('Window is corrently waiting for a response; script execution may fail.');
+                    Logger.warn('Window is currently waiting for a response; script execution may fail.');
                 }
 
                 executeResponse = null;

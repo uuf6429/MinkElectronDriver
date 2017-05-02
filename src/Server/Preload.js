@@ -185,14 +185,16 @@
 
                 default:
                     element.value = '';
-                    // try inserting values via (synthetic) key events
-                    const keys = value.split();
-                    for (let i = 0; i < keys.length; i++) {
-                        this.syn.key(element, keys[i]);
-                    }
-                    // if key events failed setting value, set it directly
-                    if (element.value !== value) {
-                        element.value = value;
+                    if (value !== null) {
+                        // try inserting values via (synthetic) key events
+                        const keys = value.toString().split('');
+                        for (let i = 0; i < keys.length; i++) {
+                            this.syn.key(element, keys[i]);
+                        }
+                        // if key events failed setting value, set it directly
+                        if (element.value !== value) {
+                            element.value = value;
+                        }
                     }
                     // trigger change event
                     this.syn.trigger(element, 'change', {});
