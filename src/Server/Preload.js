@@ -345,6 +345,15 @@
 
         'getElementByXPath': function (xpath) {
             return document.evaluate(xpath, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
+        },
+
+        'getElementCenterPos': function (element) {
+            const rect = element.getBoundingClientRect();
+
+            return {
+                'x': Math.round(rect.left + (rect.width / 2)),
+                'y': Math.round(rect.top + (rect.height / 2))
+            };
         }
     }
 })();

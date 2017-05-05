@@ -1020,15 +1020,7 @@ class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
      */
     protected function getElementCenterPos($xpath)
     {
-        return $this->evaluateForElementByXPath($xpath, <<<'JS'
-            (function(){
-                const rect = element.getBoundingClientRect(),
-                    x = Math.round(rect.left + (rect.width / 2)),
-                    y = Math.round(rect.top + (rect.height / 2));
-                return {'x': x, 'y': y};
-            })();
-JS
-        );
+        return $this->evaluateForElementByXPath($xpath, 'Electron.getElementCenterPos(element)');
     }
 
     /**
