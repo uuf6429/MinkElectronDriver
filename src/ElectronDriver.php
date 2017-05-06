@@ -628,7 +628,7 @@ class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
     {
         // TODO use native mouse events
         $this->evaluateExprWithArgs(
-            'setTimeout(function(){ Electron.syn.drag(sourceElement, {to: targetElement, duration: 10}); }, 1);',
+            'setTimeout(function(){ Electron.syn.drag(sourceElement, {to: targetElement, duration: 1}); }, 1);',
             [],
             [
                 'sourceElement' => $this->scriptXPathEval($sourceXpath),
