@@ -713,7 +713,7 @@ class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
      */
     protected function flushServerOutput()
     {
-        if ($this->electronProcess) {
+        if ($this->electronProcess && !$this->electronProcess->isOutputDisabled()) {
             $this->electronProcess->getOutput();
         }
     }
