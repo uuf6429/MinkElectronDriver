@@ -5,6 +5,7 @@
         setWindowIdName = remote.getGlobal('setWindowIdName'),
         getWindowNameFromId = remote.getGlobal('getWindowNameFromId'),
         setFileFromScript = remote.getGlobal('setFileFromScript'),
+        setExecutionResponse = remote.getGlobal('setExecutionResponse'),
         isWindowNameSet = remote.getGlobal('isWindowNameSet'),
         DELAY_SCRIPT_RESPONSE = remote.getGlobal('DELAY_SCRIPT_RESPONSE'),
         electronWebContents = remote.getCurrentWebContents();
@@ -364,6 +365,29 @@
                 'x': Math.round(rect.left + (rect.width / 2)),
                 'y': Math.round(rect.top + (rect.height / 2))
             };
+        },
+
+        /**
+         * @param {String} rdEventType
+         */
+        'handleMouseEventOnce': function (rdEventType) {
+            const rdEventTypeToJsEventMap = {
+                'mouseMoved': 'mousemove',
+                'mousePressed': 'mousedown',
+                'mouseReleased': 'mouseup'
+            };
+
+            if (!rdEventTypeToJsEventMap[rdEventType]) {
+                throw new Error('RemoteDebug event named "' + rdEventType + '" is not supported.');
+            }
+
+            window.addEventListener(
+                rdEventTypeToJsEventMap[rdEventType],
+                function () {
+                    setExecutionResponse({'result': true});
+                },
+                {catpure: true, once: true}
+            );
         }
     };
 })();

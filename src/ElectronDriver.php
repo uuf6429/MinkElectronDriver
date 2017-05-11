@@ -1008,9 +1008,6 @@ class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
 
         $this->sendAndWaitWithoutResult('dispatchMouseEvent', [$params]);
 
-        usleep(10000); // FIXME Unfortunately, couldn't find a way to immediately detect location change
-                       // One possible fix is to remove sleep from here and put it into click/dblclick/rightclick methods
-
         $this->handleExecutionResponse('Could not dispatch mouse event: %s');
     }
 

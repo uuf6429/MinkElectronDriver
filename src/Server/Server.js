@@ -137,6 +137,13 @@ Electron.app.on('ready', function() {
     };
 
     /**
+     * @param {*} response
+     */
+    global.setExecutionResponse = function (response) {
+        executeResponse = response;
+    };
+
+    /**
      * Sets flag indicating that something caused the current page to start unloading.
      * @param {boolean} value
      */
@@ -856,18 +863,26 @@ Electron.app.on('ready', function() {
 
                 executeResponse = null;
 
-                currWindow.webContents.debugger.sendCommand(
-                    'Input.dispatchMouseEvent',
-                    params,
-                    function (error) {
-                        if (isEmptyObject(error)) {
-                            executeResponse = {'result': true};
-                        } else {
-                            Logger.error('Could not dispatch mouse event (%j): %s', params, errorToString(error));
-                            executeResponse = {'error': errorToString(error)};
-                        }
-                    }
-                );
+                currWindow.webContents
+                    .executeJavaScript('Electron.handleMouseEventOnce(' + JSON.stringify(params.type) + ');')
+                    .then(function () {
+                        currWindow.webContents.debugger.sendCommand(
+                            'Input.dispatchMouseEvent',
+                            params,
+                            function (error) {
+                                if (isEmptyObject(error)) {
+                                    Logger.debug('Mouse event fired, waiting for it to be caught...');
+                                } else {
+                                    Logger.error('Could not dispatch mouse event (%j): %s', params, errorToString(error));
+                                    executeResponse = {'error': errorToString(error)};
+                                }
+                            }
+                        );
+                    })
+                    .catch(function (error) {
+                        Logger.error('Could create mouse event listener (%j): %s', params, errorToString(error));
+                        executeResponse = {'error': errorToString(error)};
+                    });
 
                 cb();
             },
