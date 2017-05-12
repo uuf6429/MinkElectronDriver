@@ -1031,12 +1031,7 @@ class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
         $result = $this->waitForAsyncResult('getExecutionResponse');
 
         if (isset($result['error'])) {
-            throw new DriverException(
-                sprintf(
-                    $errorMessageTpl ?: 'Could not dispatch mouse event: %s',
-                    $result['error']
-                )
-            );
+            throw new DriverException(sprintf($errorMessageTpl, $result['error']));
         }
 
         if ($allowRedirect && isset($result['redirect']) && $result['redirect']) {

@@ -384,7 +384,9 @@
             window.addEventListener(
                 rdEventTypeToJsEventMap[rdEventType],
                 function (event) {
-                    setMouseEventTriggered((event && event.target) ? this.getElementSelector(event.target) : 'unknown');
+                    setMouseEventTriggered(
+                        (event && event.target) ? this.getElementSelector(event.target) : 'unknown'
+                    );
                 },
                 {catpure: true, once: true}
             );
