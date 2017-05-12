@@ -5,7 +5,7 @@
         setWindowIdName = remote.getGlobal('setWindowIdName'),
         getWindowNameFromId = remote.getGlobal('getWindowNameFromId'),
         setFileFromScript = remote.getGlobal('setFileFromScript'),
-        setExecutionResponse = remote.getGlobal('setExecutionResponse'),
+        setMouseEventTriggered = remote.getGlobal('setMouseEventTriggered'),
         isWindowNameSet = remote.getGlobal('isWindowNameSet'),
         DELAY_SCRIPT_RESPONSE = remote.getGlobal('DELAY_SCRIPT_RESPONSE'),
         electronWebContents = remote.getCurrentWebContents();
@@ -383,11 +383,47 @@
 
             window.addEventListener(
                 rdEventTypeToJsEventMap[rdEventType],
-                function () {
-                    setExecutionResponse({'result': true});
+                function (event) {
+                    setMouseEventTriggered((event && event.target) ? this.getElementSelector(event.target) : 'unknown');
                 },
                 {catpure: true, once: true}
             );
+        },
+
+        /**
+         * @param {HTMLElement} element
+         * @returns {String}
+         */
+        'getElementSelector': function (element){
+            if (element.id) {
+                return '#' + element.id;
+            }
+
+            let parent = element.parentNode;
+            let selector = '>' + element.nodeName + ':nth-child(' + this.getElementIndex(element) + ')';
+
+            while (!parent.id && parent.nodeName.toLowerCase() !== 'body') {
+                selector = '>' + element.nodeName + ':nth-child(' + this.getElementIndex(parent) + ')' + selector;
+                parent = parent.parentNode;
+            }
+
+            if (parent.nodeName === 'body') {
+                selector = 'body' + selector;
+            } else {
+                selector = '#' + parent.id + selector;
+            }
+
+            return selector;
+        },
+
+        /**
+         * @param {Node} element
+         * @returns {Number}
+         */
+        'getElementIndex': function(element) {
+            let i = 0;
+            while (!!(element = element.previousSibling)) i++;
+            return i;
         }
     };
 })();

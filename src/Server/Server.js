@@ -137,10 +137,12 @@ Electron.app.on('ready', function() {
     };
 
     /**
-     * @param {*} response
+     * @param {*} targetSpec
      */
-    global.setExecutionResponse = function (response) {
-        executeResponse = response;
+    global.setMouseEventTriggered = function (targetSpec) {
+        Logger.debug('Mouse event trigger confirmed (target: %j).', targetSpec);
+
+        executeResponse = {'result': true};
     };
 
     /**
