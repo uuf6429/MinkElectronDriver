@@ -371,11 +371,12 @@
          * @param {String} rdEventType
          */
         'handleMouseEventOnce': function (rdEventType) {
-            const rdEventTypeToJsEventMap = {
-                'mouseMoved': 'mousemove',
-                'mousePressed': 'mousedown',
-                'mouseReleased': 'mouseup'
-            };
+            const self = this,
+                rdEventTypeToJsEventMap = {
+                    'mouseMoved': 'mousemove',
+                    'mousePressed': 'mousedown',
+                    'mouseReleased': 'mouseup'
+                };
 
             if (!rdEventTypeToJsEventMap[rdEventType]) {
                 throw new Error('RemoteDebug event named "' + rdEventType + '" is not supported.');
@@ -385,7 +386,7 @@
                 rdEventTypeToJsEventMap[rdEventType],
                 function (event) {
                     setMouseEventTriggered(
-                        (event && event.target) ? this.getElementSelector(event.target) : 'unknown'
+                        (event && event.target) ? self._getElementSelector(event.target) : 'unknown'
                     );
                 },
                 {catpure: true, once: true}
@@ -396,16 +397,16 @@
          * @param {HTMLElement} element
          * @returns {String}
          */
-        'getElementSelector': function (element){
+        '_getElementSelector': function (element){
             if (element.id) {
                 return '#' + element.id;
             }
 
             let parent = element.parentNode;
-            let selector = '>' + element.nodeName + ':nth-child(' + this.getElementIndex(element) + ')';
+            let selector = '>' + element.nodeName + ':nth-child(' + this._getElementIndex(element) + ')';
 
             while (!parent.id && parent.nodeName.toLowerCase() !== 'body') {
-                selector = '>' + element.nodeName + ':nth-child(' + this.getElementIndex(parent) + ')' + selector;
+                selector = '>' + element.nodeName + ':nth-child(' + this._getElementIndex(parent) + ')' + selector;
                 parent = parent.parentNode;
             }
 
@@ -422,7 +423,7 @@
          * @param {Node} element
          * @returns {Number}
          */
-        'getElementIndex': function(element) {
+        '_getElementIndex': function(element) {
             let i = 0;
             while (!!(element = element.previousSibling)) i++;
             return i;

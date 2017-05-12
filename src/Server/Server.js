@@ -882,7 +882,7 @@ Electron.app.on('ready', function() {
                         );
                     })
                     .catch(function (error) {
-                        Logger.error('Could create mouse event listener (%j): %s', params, errorToString(error));
+                        Logger.error('Could not create mouse event listener (%j): %s', params, errorToString(error));
                         executeResponse = {'error': errorToString(error)};
                     });
 
