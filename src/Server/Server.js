@@ -334,12 +334,12 @@ Electron.app.on('ready', function() {
                                             executeResponse = {'result': true};
                                         })
                                         .catch(function (error) {
-                                            Logger.error('Could trigger change event: %s', errorToString(error));
+                                            Logger.error('Could not trigger change event: %s', errorToString(error));
                                             executeResponse = {'error': errorToString(error)};
                                         });
                                 })
                                 .catch(function (error) {
-                                    Logger.error('Could perform RemoteDebug cleanup: %s', errorToString(error));
+                                    Logger.error('Could not perform RemoteDebug cleanup: %s', errorToString(error));
                                     executeResponse = {'error': errorToString(error)};
                                 });
                         } else {
@@ -815,12 +815,12 @@ Electron.app.on('ready', function() {
                                                 executeResponse = {'result': true};
                                             })
                                             .catch(function (error) {
-                                                Logger.error('Could trigger change event: %s', errorToString(error));
+                                                Logger.error('Could not trigger change event: %s', errorToString(error));
                                                 executeResponse = {'error': errorToString(error)};
                                             });
                                     })
                                     .catch(function (error) {
-                                        Logger.error('Could perform RemoteDebug cleanup: %s', errorToString(error));
+                                        Logger.error('Could not perform RemoteDebug cleanup: %s', errorToString(error));
                                         executeResponse = {'error': errorToString(error)};
                                     });
                             } else {

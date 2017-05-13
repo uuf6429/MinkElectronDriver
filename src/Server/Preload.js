@@ -107,7 +107,7 @@
          * @private
          */
         '_elementInDocument': function (element) {
-            while (element = element.parentNode) {
+            while (!!(element = element.parentNode)) {
                 if (element === document) {
                     return true;
                 }
@@ -355,5 +355,5 @@
                 'y': Math.round(rect.top + (rect.height / 2))
             };
         }
-    }
+    };
 })();
