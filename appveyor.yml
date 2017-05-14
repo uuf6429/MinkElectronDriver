@@ -1,14 +1,13 @@
 build: false
 platform:
   - x86
-  - x64
 clone_folder: c:\projects\MinkElectronDriver
 
 environment:
   matrix:
-  - php_ver_target: 7.0
+  - php_ver_target: 7.0.19
     nodejs_version: 6
-  - php_ver_target: 7.0
+  - php_ver_target: 7.0.19
     nodejs_version: 7
 
 cache:
@@ -24,12 +23,17 @@ init:
   - SET PHP=1
 
 install:
-    # Install nodejs
+    # Ensure Windows Update Service is running
+    - ps: Set-Service wuauserv -StartupType Manual
+    # Install & set up nodejs
     - ps: Install-Product node $env:nodejs_version
+    - npm install --global windows-build-tools
+    # Install openssl
+    - cinst OpenSSL.Light
     # Install php
     - IF EXIST c:\tools\php (SET PHP=0)
-    - ps: appveyor-retry cinst --params '""/InstallDir:C:\tools\php""' --ignore-checksums -y php --version ((choco search php --exact --all-versions -r | select-string -pattern $env:php_ver_target | sort { [version]($_ -split '\|' | select -last 1) } -Descending | Select-Object -first 1) -replace '[php|]','')
-    - cd c:\tools\php
+    - IF %PHP%==1 cinst --params '"/InstallDir:C:\tools\php"' -i -y php --version %php_ver_target% --force
+    - IF %PHP%==1 cd c:\tools\php
     - IF %PHP%==1 copy php.ini-production php.ini /Y
     - IF %PHP%==1 echo date.timezone="UTC" >> php.ini
     - IF %PHP%==1 echo extension_dir=ext >> php.ini
