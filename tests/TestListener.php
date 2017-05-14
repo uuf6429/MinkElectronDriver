@@ -1,6 +1,6 @@
 <?php
 
-namespace Behat\Mink\Tests\Driver;
+namespace Behat\Mink\Tests\Driver\Electron;
 
 use PHPUnit_Framework_TestSuite as TestSuite;
 use PHPUnit_Framework_Test as Test;
@@ -8,15 +8,15 @@ use PHPUnit_Framework_Warning as Warning;
 use PHPUnit_Framework_AssertionFailedError as AssertionFailedError;
 use PHPUnit_Framework_SelfDescribing as SelfDescribing;
 
-class ElectronTestListener extends \PHPUnit_Framework_BaseTestListener
+class TestListener extends \PHPUnit_Framework_BaseTestListener
 {
     /**
      * @inheritdoc
      */
     public function startTestSuite(TestSuite $suite)
     {
-        ElectronConfig::getInstance()->getLogger()->info('PHPUnit Start Suite ' . $suite->getName());
-        ElectronConfig::getInstance()->getLogger()->indent();
+        Config::getInstance()->getLogger()->info('PHPUnit Start Suite ' . $suite->getName());
+        Config::getInstance()->getLogger()->indent();
     }
 
     /**
@@ -24,8 +24,8 @@ class ElectronTestListener extends \PHPUnit_Framework_BaseTestListener
      */
     public function endTestSuite(TestSuite $suite)
     {
-        ElectronConfig::getInstance()->getLogger()->outdent();
-        ElectronConfig::getInstance()->getLogger()->info('PHPUnit End Suite');
+        Config::getInstance()->getLogger()->outdent();
+        Config::getInstance()->getLogger()->info('PHPUnit End Suite');
     }
 
     /**
@@ -35,8 +35,8 @@ class ElectronTestListener extends \PHPUnit_Framework_BaseTestListener
     {
         $name = $test instanceof SelfDescribing ? $test->toString() : '';
 
-        ElectronConfig::getInstance()->getLogger()->info('PHPUnit Start Test ' . $name);
-        ElectronConfig::getInstance()->getLogger()->indent();
+        Config::getInstance()->getLogger()->info('PHPUnit Start Test ' . $name);
+        Config::getInstance()->getLogger()->indent();
     }
 
     /**
@@ -46,8 +46,8 @@ class ElectronTestListener extends \PHPUnit_Framework_BaseTestListener
     {
         $name = $test instanceof SelfDescribing ? $test->toString() : '';
 
-        ElectronConfig::getInstance()->getLogger()->outdent();
-        ElectronConfig::getInstance()->getLogger()->info('PHPUnit End Test ' . $name);
+        Config::getInstance()->getLogger()->outdent();
+        Config::getInstance()->getLogger()->info('PHPUnit End Test ' . $name);
     }
 
     /**
@@ -55,7 +55,7 @@ class ElectronTestListener extends \PHPUnit_Framework_BaseTestListener
      */
     public function addError(Test $test, \Exception $e, $time)
     {
-        ElectronConfig::getInstance()->getLogger()->error('PHPUnit Test Error ' . $e);
+        Config::getInstance()->getLogger()->error('PHPUnit Test Error ' . $e);
     }
 
     /**
@@ -63,7 +63,7 @@ class ElectronTestListener extends \PHPUnit_Framework_BaseTestListener
      */
     public function addWarning(Test $test, Warning $e, $time)
     {
-        ElectronConfig::getInstance()->getLogger()->warning('PHPUnit Test Warning ' . $e->toString());
+        Config::getInstance()->getLogger()->warning('PHPUnit Test Warning ' . $e->toString());
     }
 
     /**
@@ -71,6 +71,6 @@ class ElectronTestListener extends \PHPUnit_Framework_BaseTestListener
      */
     public function addFailure(Test $test, AssertionFailedError $e, $time)
     {
-        ElectronConfig::getInstance()->getLogger()->error('PHPUnit Test Failure ' . $e->toString());
+        Config::getInstance()->getLogger()->error('PHPUnit Test Failure ' . $e->toString());
     }
 }

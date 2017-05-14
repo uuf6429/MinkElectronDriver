@@ -3,13 +3,13 @@
 <phpunit colors="true" bootstrap="vendor/autoload.php">
     <testsuites>
         <testsuite name="Driver test suite">
-            <directory>tests</directory>
+            <directory>tests/Tests</directory>
             <directory>vendor/mink/driver-testsuite/tests</directory>
         </testsuite>
     </testsuites>
 
     <php>
-        <var name="driver_config_factory" value="Behat\Mink\Tests\Driver\ElectronConfig::getInstance" />
+        <var name="driver_config_factory" value="Behat\Mink\Tests\Driver\Electron\Config::getInstance" />
     </php>
 
     <filter>
@@ -19,6 +19,6 @@
     </filter>
 
     <listeners>
-        <listener class="Behat\Mink\Tests\Driver\ElectronTestListener"/>
+        <listener class="Behat\Mink\Tests\Driver\Electron\TestListener"/>
     </listeners>
 </phpunit>

@@ -30,7 +30,7 @@
   },
   "autoload-dev": {
     "psr-4": {
-      "Behat\\Mink\\Tests\\Driver\\": "tests/"
+      "Behat\\Mink\\Tests\\Driver\\Electron\\": "tests/"
     }
   }
 }

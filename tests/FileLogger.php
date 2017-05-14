@@ -1,11 +1,11 @@
 <?php
 
-namespace Behat\Mink\Tests\Driver;
+namespace Behat\Mink\Tests\Driver\Electron;
 
 use Psr\Log\AbstractLogger;
 use Psr\Log\LogLevel;
 
-class ElectronFileLogger extends AbstractLogger
+class FileLogger extends AbstractLogger
 {
     /**
      * @var \SplFileObject
