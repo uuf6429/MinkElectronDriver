@@ -2,13 +2,13 @@
 
 namespace Behat\Mink\Tests\Driver\Electron\Tests;
 
-use Behat\Mink\Tests\Driver\Electron\DriverTestCase;
+use Behat\Mink\Tests\Driver\Electron\WebTestCase;
 
-class CookieTest extends DriverTestCase
+class CookieTest extends WebTestCase
 {
     public function testOverwritingCookies()
     {
-        $this->driver->visit('http://google.com');
+        $this->driver->visit(static::BASE_URL);
 
         $this->driver->setCookie('test1', 'ccc');
         $this->driver->setCookie('test2', 'bbb');
@@ -36,7 +36,7 @@ class CookieTest extends DriverTestCase
 
     public function testResettingCookies()
     {
-        $this->driver->visit('http://google.com');
+        $this->driver->visit(static::BASE_URL);
 
         $this->driver->setCookie('test1', 'aaa');
         $this->driver->reset();
@@ -45,13 +45,13 @@ class CookieTest extends DriverTestCase
 
     public function testPersistingCookies()
     {
-        $this->driver->visit('http://google.com');
+        $this->driver->visit(static::BASE_URL);
         $this->driver->setCookie('test1', 'aaa');
 
-        $this->driver->visit('http://bing.com');
+        $this->driver->visit('http://google.com');
         $this->assertSame(null, $this->driver->getCookie('test1'));
 
-        $this->driver->visit('http://google.com');
+        $this->driver->visit(static::BASE_URL);
         $this->assertSame('aaa', $this->driver->getCookie('test1'));
     }
 }

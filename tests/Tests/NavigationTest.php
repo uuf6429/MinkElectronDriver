@@ -2,22 +2,22 @@
 
 namespace Behat\Mink\Tests\Driver\Electron\Tests;
 
-use Behat\Mink\Tests\Driver\Electron\DriverTestCase;
+use Behat\Mink\Tests\Driver\Electron\WebTestCase;
 
-class NavigationTest extends DriverTestCase
+class NavigationTest extends WebTestCase
 {
     public function testNavigation()
     {
-        $this->driver->visit('https://bing.com/');
-        $this->assertContains('bing.', $this->driver->getCurrentUrl());
+        $this->driver->visit('https://google.com/');
+        $this->assertContains('google.', $this->driver->getCurrentUrl());
 
-        $this->driver->visit('https://httpbin.org/status/200');
-        $this->assertContains('httpbin.org/status/200', $this->driver->getCurrentUrl());
+        $this->driver->visit(static::BASE_URL);
+        $this->assertContains(static::BASE_URL, $this->driver->getCurrentUrl());
 
         $this->driver->back();
-        $this->assertContains('bing.', $this->driver->getCurrentUrl());
+        $this->assertContains('google.', $this->driver->getCurrentUrl());
 
         $this->driver->forward();
-        $this->assertContains('httpbin.org/status/200', $this->driver->getCurrentUrl());
+        $this->assertContains(static::BASE_URL, $this->driver->getCurrentUrl());
     }
 }
