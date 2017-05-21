@@ -12,6 +12,8 @@
   "require": {
     "php": ">=5.5",
     "behat/mink": "~1.7",
+    "behat/mink-extension": "^2.2",
+    "behat/behat": "~3.0",
     "symfony/process": "^3.0",
     "uuf6429/dnode-php-sync-client": "^2.0",
     "eloquent/composer-npm-bridge": "^3.0.1"
