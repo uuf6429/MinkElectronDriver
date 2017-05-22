@@ -40,4 +40,4 @@ script:
 
 after_script:
   - bash <(curl -s https://codecov.io/bash)
-  - php -r "readfile('https://gist.githubusercontent.com/uuf6429/b6df80e2aedd80dd9e5af4cf5575795a/raw/264eaa37db2e56c180977100335f489a6b4d2209/loghighlight.php');" | php -- tmp/output.log
+  - php -r "readfile('https://gist.githubusercontent.com/uuf6429/b6df80e2aedd80dd9e5af4cf5575795a/raw/264eaa37db2e56c180977100335f489a6b4d2209/loghighlight.php');" | php -- tmp/electron.log

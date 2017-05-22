@@ -31,17 +31,18 @@ init:
   - SET PHP=1
 
 install:
+  - cd c:\projects\MinkElectronDriver
   - mkdir tmp
   # Ensure Windows Update Service is running
   - ps: Set-Service wuauserv -StartupType Manual
   # Install & set up nodejs
   - ps: Install-Product node $env:nodejs_version | Out-File tmp\nodejs-install.log
-  - npm install --global windows-build-tools > tmp\windows-build-tools.log
+  - npm install --global windows-build-tools > tmp\windows-build-tools.log 2>&1
   # Install openssl
   - cinst OpenSSL.Light > tmp\openssl-install.log
   # Install php
   - IF EXIST c:\tools\php (SET PHP=0)
-  - IF %PHP%==1 cinst --params '"/InstallDir:C:\tools\php"' -i -y php --version %php_ver_target% --force > tmp\php-install.log
+  - IF %PHP%==1 cinst --params '"/InstallDir:C:\tools\php"' -i -y php --version %php_ver_target% --force > tmp\php-install.log 2>&1
   - IF %PHP%==1 cd c:\tools\php
   - IF %PHP%==1 copy php.ini-production php.ini /Y
   - IF %PHP%==1 echo date.timezone="UTC" >> php.ini
@@ -55,7 +56,7 @@ install:
   - composer self-update --no-progress --ansi
   # Install project composer dependencies
   - cd c:\projects\MinkElectronDriver
-  - composer install --no-progress --no-ansi > tmp\composer.log
+  - composer install --no-progress --no-ansi > tmp\composer.log 2>&1
 
 before_test:
   - ps: $minkServer = Start-Process php -ArgumentList "-S localhost:8002 -t vendor/mink/driver-testsuite/web-fixtures" -PassThru
@@ -69,4 +70,4 @@ test_script:
 
 on_finish:
   # We have logs in appveyor artifacts, so no need to display it
-  #- php -r "readfile('https://gist.githubusercontent.com/uuf6429/b6df80e2aedd80dd9e5af4cf5575795a/raw/264eaa37db2e56c180977100335f489a6b4d2209/loghighlight.php');" | php -- tmp/output.log
+  #- php -r "readfile('https://gist.githubusercontent.com/uuf6429/b6df80e2aedd80dd9e5af4cf5575795a/raw/264eaa37db2e56c180977100335f489a6b4d2209/loghighlight.php');" | php -- tmp/electron.log
