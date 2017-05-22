@@ -20,7 +20,7 @@ class Config extends AbstractConfig
 
     protected function __construct()
     {
-        $this->logger = new FileLogger(__DIR__ . '/../tmp/output.log', false);
+        $this->logger = new FileLogger(__DIR__ . '/../tmp/electron.log', false);
     }
 
     /**
@@ -40,7 +40,7 @@ class Config extends AbstractConfig
      */
     public function createDriver()
     {
-        return new ElectronDriver($this->logger, false, getenv('ELECTRON_LOG') ?: LogLevel::INFO);
+        return new ElectronDriver($this->logger, false, getenv('ELECTRON_LOG') ?: LogLevel::DEBUG);
     }
 
     /**
