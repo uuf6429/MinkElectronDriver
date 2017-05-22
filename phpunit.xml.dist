@@ -1,6 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<phpunit colors="true" bootstrap="vendor/autoload.php">
+<phpunit colors="true"
+         beStrictAboutOutputDuringTests="true"
+         beStrictAboutTestsThatDoNotTestAnything="true"
+         bootstrap="vendor/autoload.php">
     <testsuites>
         <testsuite name="Driver test suite">
             <directory>tests/Tests</directory>
@@ -9,7 +12,7 @@
     </testsuites>
 
     <php>
-        <var name="driver_config_factory" value="Behat\Mink\Tests\Driver\Electron\Config::getInstance" />
+        <var name="driver_config_factory" value="Behat\Mink\Tests\Driver\Electron\Config::getInstance"/>
     </php>
 
     <filter>

@@ -1,6 +1,6 @@
 <?php
 
-namespace Behat\Mink\Tests\Driver\Electron\Tests;
+namespace Behat\Mink\Tests\Driver\Electron\Tests\Driver;
 
 use Behat\Mink\Tests\Driver\Electron\DriverTestCase;
 
