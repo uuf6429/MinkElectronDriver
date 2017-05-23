@@ -1,29 +1,30 @@
 <?php
 
-namespace Behat\Mink\Tests\Driver;
+namespace Behat\Mink\Tests\Driver\Electron;
 
 use Behat\Mink\Driver\ElectronDriver;
+use Behat\Mink\Tests\Driver\AbstractConfig;
 use Psr\Log\LogLevel;
 
-class ElectronConfig extends AbstractConfig
+class Config extends AbstractConfig
 {
     /**
-     * @var ElectronFileLogger
+     * @var FileLogger
      */
     protected $logger;
 
     /**
-     * @var ElectronConfig
+     * @var Config
      */
     protected static $instance;
 
     protected function __construct()
     {
-        $this->logger = new ElectronFileLogger(__DIR__ . '/../tmp/output.log', false);
+        $this->logger = new FileLogger(__DIR__ . '/../tmp/electron.log', false);
     }
 
     /**
-     * @return ElectronConfig
+     * @return Config
      */
     public static function getInstance()
     {
@@ -39,7 +40,7 @@ class ElectronConfig extends AbstractConfig
      */
     public function createDriver()
     {
-        return new ElectronDriver($this->logger, false, getenv('ELECTRON_LOG') ?: LogLevel::INFO);
+        return new ElectronDriver($this->logger, false, getenv('ELECTRON_LOG') ?: LogLevel::DEBUG);
     }
 
     /**
@@ -51,7 +52,7 @@ class ElectronConfig extends AbstractConfig
     }
 
     /**
-     * @return ElectronFileLogger
+     * @return FileLogger
      */
     public function getLogger()
     {
