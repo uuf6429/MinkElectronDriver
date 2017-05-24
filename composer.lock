@@ -1288,12 +1288,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/minkphp/driver-testsuite.git",
-                "reference": "6ff951e2c852a115f04f293fea46e08d49ebc116"
+                "reference": "1d2e9fcef116171142930dacbfdca709b34024cb"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/minkphp/driver-testsuite/zipball/6ff951e2c852a115f04f293fea46e08d49ebc116",
-                "reference": "6ff951e2c852a115f04f293fea46e08d49ebc116",
+                "url": "https://api.github.com/repos/minkphp/driver-testsuite/zipball/1d2e9fcef116171142930dacbfdca709b34024cb",
+                "reference": "1d2e9fcef116171142930dacbfdca709b34024cb",
                 "shasum": ""
             },
             "require": {
@@ -1331,7 +1331,7 @@
             ],
             "description": "Functional testsuite for Mink drivers",
             "homepage": "http://mink.behat.org/",
-            "time": "2016-11-21 10:58:49"
+            "time": "2017-05-24T17:01:04+00:00"
         },
         {
             "name": "myclabs/deep-copy",
