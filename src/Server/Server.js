@@ -191,6 +191,17 @@ Electron.app.on('ready', function() {
     };
 
     /**
+     * Returns if window name has ever been set for a particular id.
+     * @param {Number} id
+     * @return {Boolean}
+     */
+    global.isWindowNameSet = function (id) {
+        const sId = id === null ? "" : id.toString();
+
+        return sId !== '' && typeof(windowIdNameMap[sId]) !== 'undefined';
+    };
+
+    /**
      * Finds window by its window name. Note that this depends on the windows successfully registering it's id and name
      * when created. Since we keep these details in a hash map, we need to be careful about keeping it up to date.
      * @param {string} name
@@ -206,7 +217,7 @@ Electron.app.on('ready', function() {
         for (let id in windowIdNameMap) {
             if (windowIdNameMap.hasOwnProperty(id) && windowIdNameMap[id] === name) {
                 const wnd = BrowserWindow.fromId(parseInt(id));
-                if (wnd) result.push(wnd);
+                if (wnd && result.indexOf(wnd) === -1) result.push(wnd);
             }
         }
 

@@ -5,6 +5,7 @@
         setWindowIdName = remote.getGlobal('setWindowIdName'),
         getWindowNameFromId = remote.getGlobal('getWindowNameFromId'),
         setFileFromScript = remote.getGlobal('setFileFromScript'),
+        isWindowNameSet = remote.getGlobal('isWindowNameSet'),
         DELAY_SCRIPT_RESPONSE = remote.getGlobal('DELAY_SCRIPT_RESPONSE'),
         electronWebContents = remote.getCurrentWebContents();
 
@@ -15,10 +16,11 @@
 
     window.addEventListener('beforeunload', function () {
         setWindowUnloading(true);
-        setWindowIdName(electronWebContents.id, null, location.href);
     });
 
-    setWindowIdName(electronWebContents.id, window.name || remote.getGlobal('newWindowName') || '', location.href);
+    if (!isWindowNameSet(electronWebContents.id)) {
+        setWindowIdName(electronWebContents.id, window.name || remote.getGlobal('newWindowName') || '', location.href);
+    }
     window.__defineSetter__("name", function (name) {
         setWindowIdName(electronWebContents.id, name || '', location.href);
     });
@@ -343,10 +345,18 @@
             input.click();
         },
 
+        /**
+         * @param {String} xpath
+         * @returns {Node}
+         */
         'getElementByXPath': function (xpath) {
             return document.evaluate(xpath, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
         },
 
+        /**
+         * @param {HTMLElement} element
+         * @returns {{x: number, y: number}}
+         */
         'getElementCenterPos': function (element) {
             const rect = element.getBoundingClientRect();
 
