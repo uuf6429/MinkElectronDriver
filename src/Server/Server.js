@@ -227,7 +227,7 @@ Electron.app.on('ready', function() {
             case 1:
                 return result[0];
             default:
-                throw new Error('There are ' + result.length + ' windows named "' + name + '".');
+                throw new Error('There are ' + result.length + ' windows named "' + name + '". ');
         }
     };
 
