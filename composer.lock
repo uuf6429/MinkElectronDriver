@@ -1331,7 +1331,7 @@
             ],
             "description": "Functional testsuite for Mink drivers",
             "homepage": "http://mink.behat.org/",
-            "time": "2017-05-24T17:01:04+00:00"
+            "time": "2017-05-24 17:01:04"
         },
         {
             "name": "myclabs/deep-copy",
