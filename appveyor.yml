@@ -17,14 +17,6 @@ cache:
   - C:\ProgramData\chocolatey\lib -> .appveyor.yml
   - c:\tools\php -> .appveyor.yml
 
-artifacts:
-  - path: tmp\nodejs-install.log
-  - path: tmp\windows-build-tools.log
-  - path: tmp\openssl-install.log
-  - path: tmp\php-install.log
-  - path: tmp\composer.log
-  - path: tmp\electron.log
-
 init:
   - SET PATH=C:\Program Files\OpenSSL;c:\tools\php;%PATH%
   - SET COMPOSER_NO_INTERACTION=1
@@ -66,8 +58,15 @@ after_test:
 
 test_script:
   - cd c:\projects\MinkElectronDriver
-  - vendor/bin/phpunit --colors=always -c phpunit.xml.dist
+  - vendor/bin/phpunit --colors=always -c phpunit.xml.dist --log-junit tmp\junit-report.xml
 
 on_finish:
   # We have logs in appveyor artifacts, so no need to display it
   #- php -r "readfile('https://gist.githubusercontent.com/uuf6429/b6df80e2aedd80dd9e5af4cf5575795a/raw/264eaa37db2e56c180977100335f489a6b4d2209/loghighlight.php');" | php -- tmp/electron.log
+  # Upload logs as artifacts
+  - appveyor PushArtifact tmp\nodejs-install.log && exit 0
+  - appveyor PushArtifact tmp\windows-build-tools.log && exit 0
+  - appveyor PushArtifact tmp\openssl-install.log && exit 0
+  - IF %PHP%==1 appveyor PushArtifact tmp\php-install.log && exit 0
+  - appveyor PushArtifact tmp\composer.log && exit 0
+  - appveyor PushArtifact tmp\electron.log && exit 0
