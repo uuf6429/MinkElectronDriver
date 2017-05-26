@@ -70,3 +70,5 @@ on_finish:
   - IF %PHP%==1 appveyor PushArtifact tmp\php-install.log && exit 0
   - appveyor PushArtifact tmp\composer.log && exit 0
   - appveyor PushArtifact tmp\electron.log && exit 0
+  # Upload test results report
+  - ps: (New-Object 'System.Net.WebClient').UploadFile("https://ci.appveyor.com/api/testresults/junit/$($env:APPVEYOR_JOB_ID)", (Resolve-Path .\tmp\junit-report.xml))
