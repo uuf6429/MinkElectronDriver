@@ -863,7 +863,7 @@ class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
      * @return mixed
      * @throws DriverException
      */
-    protected function waitForAsyncResult($method, $arguments = [], $delay = 0.05, $timeout = 60)
+    protected function waitForAsyncResult($method, $arguments = [], $delay = 0.05, $timeout = 5)
     {
         $start = microtime(true);
 
