@@ -863,7 +863,7 @@ class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
      * @return mixed
      * @throws DriverException
      */
-    protected function waitForAsyncResult($method, $arguments = [], $delay = 0.05, $timeout = 60)
+    protected function waitForAsyncResult($method, $arguments = [], $delay = 0.05, $timeout = 5)
     {
         $start = microtime(true);
 
@@ -1008,9 +1008,6 @@ class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
 
         $this->sendAndWaitWithoutResult('dispatchMouseEvent', [$params]);
 
-        usleep(10000); // FIXME Unfortunately, couldn't find a way to immediately detect location change
-                       // One possible fix is to remove sleep from here and put it into click/dblclick/rightclick methods
-
         $this->handleExecutionResponse('Could not dispatch mouse event: %s');
     }
 
@@ -1034,12 +1031,7 @@ class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
         $result = $this->waitForAsyncResult('getExecutionResponse');
 
         if (isset($result['error'])) {
-            throw new DriverException(
-                sprintf(
-                    $errorMessageTpl ?: 'Could not dispatch mouse event: %s',
-                    $result['error']
-                )
-            );
+            throw new DriverException(sprintf($errorMessageTpl, $result['error']));
         }
 
         if ($allowRedirect && isset($result['redirect']) && $result['redirect']) {

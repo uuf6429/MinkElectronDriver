@@ -5,6 +5,7 @@
         setWindowIdName = remote.getGlobal('setWindowIdName'),
         getWindowNameFromId = remote.getGlobal('getWindowNameFromId'),
         setFileFromScript = remote.getGlobal('setFileFromScript'),
+        setMouseEventTriggered = remote.getGlobal('setMouseEventTriggered'),
         isWindowNameSet = remote.getGlobal('isWindowNameSet'),
         DELAY_SCRIPT_RESPONSE = remote.getGlobal('DELAY_SCRIPT_RESPONSE'),
         electronWebContents = remote.getCurrentWebContents();
@@ -364,6 +365,86 @@
                 'x': Math.round(rect.left + (rect.width / 2)),
                 'y': Math.round(rect.top + (rect.height / 2))
             };
+        },
+
+        /**
+         * @param {String} rdEventType
+         */
+        'handleMouseEventOnce': function (rdEventType) {
+            let triggered = false;
+            const self = this,
+                rdEventTypeToJsEventMap = {
+                    'mouseMoved': 'mousemove',
+                    'mousePressed': 'mousedown',
+                    'mouseReleased': 'mouseup'
+                },
+                eventHandler = function (event) {
+                    if (!triggered) {
+                        triggered = true;
+                        setMouseEventTriggered(
+                            (event && event.target) ? self._getElementSelector(event.target) : 'unknown'
+                        );
+                    }
+                },
+                eventTimeout = 20000;
+
+            if (!rdEventTypeToJsEventMap[rdEventType]) {
+                throw new Error('RemoteDebug event named "' + rdEventType + '" is not supported.');
+            }
+
+            window.addEventListener(
+                rdEventTypeToJsEventMap[rdEventType],
+                eventHandler,
+                {catpure: true, once: true}
+            );
+
+            setTimeout(
+                function () {
+                    if (!triggered) {
+                        triggered = true;
+                        window.removeEventListener(rdEventTypeToJsEventMap[rdEventType], eventHandler);
+                        setExecutionError(new Error('Timed out waiting for mouse event after ' + (eventTimeout / 1000)
+                            + 's, (either event capture failed or event was not dispatched successfully).'));
+                    }
+                },
+                eventTimeout
+            );
+        },
+
+        /**
+         * @param {HTMLElement} element
+         * @returns {String}
+         */
+        '_getElementSelector': function (element){
+            if (element.id) {
+                return '#' + element.id;
+            }
+
+            let parent = element.parentNode;
+            let selector = '>' + element.nodeName + ':nth-child(' + this._getElementIndex(element) + ')';
+
+            while (!parent.id && parent.nodeName.toLowerCase() !== 'body') {
+                selector = '>' + element.nodeName + ':nth-child(' + this._getElementIndex(parent) + ')' + selector;
+                parent = parent.parentNode;
+            }
+
+            if (parent.nodeName === 'body') {
+                selector = 'body' + selector;
+            } else {
+                selector = '#' + parent.id + selector;
+            }
+
+            return selector;
+        },
+
+        /**
+         * @param {Node} element
+         * @returns {Number}
+         */
+        '_getElementIndex': function(element) {
+            let i = 0;
+            while (!!(element = element.previousSibling)) i++;
+            return i;
         }
     };
 })();
