@@ -371,12 +371,22 @@
          * @param {String} rdEventType
          */
         'handleMouseEventOnce': function (rdEventType) {
+            let triggered = false;
             const self = this,
                 rdEventTypeToJsEventMap = {
                     'mouseMoved': 'mousemove',
                     'mousePressed': 'mousedown',
                     'mouseReleased': 'mouseup'
-                };
+                },
+                eventHandler = function (event) {
+                    if (!triggered) {
+                        triggered = true;
+                        setMouseEventTriggered(
+                            (event && event.target) ? self._getElementSelector(event.target) : 'unknown'
+                        );
+                    }
+                },
+                eventTimeout = 20000;
 
             if (!rdEventTypeToJsEventMap[rdEventType]) {
                 throw new Error('RemoteDebug event named "' + rdEventType + '" is not supported.');
@@ -384,12 +394,20 @@
 
             window.addEventListener(
                 rdEventTypeToJsEventMap[rdEventType],
-                function (event) {
-                    setMouseEventTriggered(
-                        (event && event.target) ? self._getElementSelector(event.target) : 'unknown'
-                    );
-                },
+                eventHandler,
                 {catpure: true, once: true}
+            );
+
+            setTimeout(
+                function () {
+                    if (!triggered) {
+                        triggered = true;
+                        window.removeEventListener(rdEventTypeToJsEventMap[rdEventType], eventHandler);
+                        setExecutionError(new Error('Timed out waiting for mouse event after ' + (eventTimeout / 1000)
+                            + 's, (either event capture failed or event was not dispatched successfully).'));
+                    }
+                },
+                eventTimeout
             );
         },
 
