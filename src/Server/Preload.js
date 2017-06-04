@@ -364,6 +364,17 @@
                 'x': Math.round(rect.left + (rect.width / 2)),
                 'y': Math.round(rect.top + (rect.height / 2))
             };
+        },
+
+        /**
+         * @returns {{x: number, y: number, width: number, height: number}}
+         */
+        'getCanvasBounds': function () {
+            return {
+                x: 0, y: 0,
+                width: document.body.scrollWidth + (window.outerWidth - window.innerWidth),
+                height: document.body.scrollHeight + (window.outerHeight - window.innerHeight)
+            };
         }
     };
 })();
