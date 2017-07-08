@@ -8,6 +8,9 @@ module.exports = (function (Registry, Utils) {
         Logger = require('./Logger.js'),
         ResponseManager = require('./ResponseManager'),
         api = {
+            /**
+             * Resets page custom headers, cookies and authentication.
+             */
             reset: function () {
                 Logger.info('Resetting page (clearing headers, session and auth).');
 
@@ -21,6 +24,9 @@ module.exports = (function (Registry, Utils) {
                 });
             },
 
+            /**
+             * Clear navigation flag (ideally after `getVisitedResponse` returns a satisfactory result).
+             */
             clearVisitedResponse: function () {
                 Logger.debug('clearVisitedResponse()');
 
@@ -29,6 +35,10 @@ module.exports = (function (Registry, Utils) {
                 ResponseManager.remove(Registry.currWindow.webContents.id);
             },
 
+            /**
+             * Navigate to a particular URL. Poll `getVisitedResponse` to know when navigation was completed.
+             * @param {String} url
+             */
             visit: function (url) {
                 let extraHeaders = '';
                 for (let key in Registry.hdrs) {
@@ -42,36 +52,59 @@ module.exports = (function (Registry, Utils) {
                 Registry.currWindow.loadURL(url, {'extraHeaders': extraHeaders});
             },
 
+            /**
+             * Returns information about page navigation. If null, it usually means navigation is still in progress.
+             * @returns {null|Boolean}
+             */
             getVisitedResponse: function () {
                 Logger.debug('getVisitedResponse() => %j', Registry.pageVisited);
 
                 return Registry.pageVisited;
             },
 
+            /**
+             * Returns URL of the current window/frame.
+             * @returns {String}
+             */
             getCurrentUrl: function () {
                 Logger.debug('getCurrentUrl() => %j', Registry.currWindow.webContents.getURL());
 
                 return Registry.currWindow.webContents.getURL().toString();
             },
 
+            /**
+             * Reload the current window/frame. Poll `getVisitedResponse` to know when navigation was completed.
+             */
             reload: function () {
                 Logger.debug('reload()');
 
                 Registry.currWindow.webContents.reload();
             },
 
+            /**
+             * Go to previous page of the current window/frame. Poll `getVisitedResponse` to know when navigation was completed.
+             */
             back: function () {
                 Logger.debug('back()');
 
                 Registry.currWindow.webContents.goBack();
             },
 
+            /**
+             * Go to next page of the current window/frame. Poll `getVisitedResponse` to know when navigation was completed.
+             */
             forward: function () {
                 Logger.debug('forward()');
 
                 Registry.currWindow.webContents.goForward();
             },
 
+            /**
+             * Set basic authentication for the following requests that might need it.
+             * If `user` is false, authentication is cleared.
+             * @param {String|Boolean} user
+             * @param {String|Boolean} pass
+             */
             setBasicAuth: function (user, pass) {
                 Logger.debug('setBasicAuth(%j, %j)', user, pass);
 
@@ -83,6 +116,10 @@ module.exports = (function (Registry, Utils) {
                 }
             },
 
+            /**
+             * Switch to window by its name. Switches to main window if `name` is `null`.
+             * @param {String|null} name
+             */
             switchToWindow: function (name) {
                 Logger.debug('switchToWindow(%j)', name);
 
@@ -90,16 +127,29 @@ module.exports = (function (Registry, Utils) {
                 Registry.currWindowId = Registry.currWindow.webContents.id;
             },
 
+            /**
+             * Switch to frame by its name. Switches to main frame if `name` is `null`.
+             * @param {String|null} name
+             * @todo Currently blocked by https://github.com/electron/electron/issues/5115
+             */
             switchToIFrame: function (name) {
-                // TODO Currently blocked by https://github.com/electron/electron/issues/5115
             },
 
+            /**
+             * Set custom request header to be used for the following requests.
+             * @param {String} name
+             * @param {String} value
+             */
             setRequestHeader: function (name, value) {
                 Logger.debug('setRequestHeader(%j, %j)', name, value);
 
                 Registry.hdrs[name] = value;
             },
 
+            /**
+             * Returns headers of the last response, or `null` if none available.
+             * @returns {Object.<String, String>|null}
+             */
             getResponseHeaders: function () {
                 const response = ResponseManager.get(Registry.currWindow.webContents.id);
                 const lastHeaders = (response || {}).headers || null;
@@ -109,6 +159,11 @@ module.exports = (function (Registry, Utils) {
                 return lastHeaders;
             },
 
+            /**
+             * Sets or clears, (when value is null), the value of a cookie.
+             * @param {String} name
+             * @param {String|null} value
+             */
             setCookie: function (name, value) {
                 Logger.debug('setCookie(%j, %j)', name, value);
 
@@ -136,6 +191,10 @@ module.exports = (function (Registry, Utils) {
                 }
             },
 
+            /**
+             * Starts a request to read details of a cookie.
+             * @param {String} name
+             */
             getCookie: function (name) {
                 Logger.debug('getCookie(%j)', name);
 
@@ -155,6 +214,9 @@ module.exports = (function (Registry, Utils) {
                 );
             },
 
+            /**
+             * Starts a request to read all cookies.
+             */
             getCookies: function () {
                 Logger.debug('getCookies()');
 
@@ -176,12 +238,20 @@ module.exports = (function (Registry, Utils) {
                 );
             },
 
+            /**
+             * Returns response for a getCookie(s) request, or null if not available yet.
+             * @returns {null|{all, error: (*|String)}|*|{set: boolean, error: (*|String)}|{get: any, error: (*|String)}}
+             */
             getCookieResponse: function () {
                 Logger.debug('getCookieResponse() => %j', Registry.cookieResponse);
 
                 return Registry.cookieResponse;
             },
 
+            /**
+             * Returns the status code of the last completed request.
+             * @returns {Integer|null}
+             */
             getStatusCode: function () {
                 const response = ResponseManager.get(Registry.currWindow.webContents.id);
                 const lastStatus = (response || {}).status || null;
@@ -191,6 +261,10 @@ module.exports = (function (Registry, Utils) {
                 return lastStatus;
             },
 
+            /**
+             * Returns the body of the lat completed request.
+             * @returns {{content: (String|null)}}
+             */
             getContent: function () {
                 const response = ResponseManager.get(Registry.currWindow.webContents.id);
                 const lastContent = {content: ((response || {}).content || null)};
@@ -200,6 +274,10 @@ module.exports = (function (Registry, Utils) {
                 return lastContent;
             },
 
+            /**
+             * Execute some JS code within the context of the current window or frame.
+             * @param {String} script
+             */
             evaluateScript: function (script) {
                 Logger.debug('evaluateScript(%s) (winId: %d)', script, Registry.currWindow.webContents.id);
 
@@ -232,6 +310,10 @@ module.exports = (function (Registry, Utils) {
                 }
             },
 
+            /**
+             * Returns response of the code executed in evaluateScript(), or null if not available yet.
+             * @returns {null|{result: boolean}|*|{error: (*|String)}|{result: any}}
+             */
             getExecutionResponse: function () {
                 if (Registry.executeResponse) {
                     Registry.executeResponse['redirect'] = Registry.windowWillUnload;
@@ -242,6 +324,9 @@ module.exports = (function (Registry, Utils) {
                 return Registry.executeResponse;
             },
 
+            /**
+             * Starts a request to take a screen shot of the current window or frame.
+             */
             getScreenshot: function () {
                 Logger.debug('getScreenshot()');
 
@@ -283,6 +368,10 @@ module.exports = (function (Registry, Utils) {
                     });
             },
 
+            /**
+             * Returns the response of the last screen shot request, or null if not available yet.
+             * @returns {{error: string}|*|{error: string}|null|{base64data: String}}
+             */
             getScreenshotResponse: function () {
                 const b64key = 'base64data',
                     b64Len = (Registry.screenshotResponse && Registry.screenshotResponse[b64key]) ? Registry.screenshotResponse[b64key].length : 0,
@@ -296,6 +385,10 @@ module.exports = (function (Registry, Utils) {
                 return Registry.screenshotResponse;
             },
 
+            /**
+             * Returns array of names of the currently open windows.
+             * @returns {Array}
+             */
             getWindowNames: function () {
                 const windowNames = Object.values(Registry.windowIdNameMap);
 
@@ -304,18 +397,33 @@ module.exports = (function (Registry, Utils) {
                 return windowNames;
             },
 
+            /**
+             * Resizes a window given its name.
+             * @param {Integer} width
+             * @param {Integer} height
+             * @param {String} name
+             */
             resizeWindow: function (width, height, name) {
                 Logger.debug('resizeWindow(%s, %s, %j)', width, height, name);
 
                 Utils.findWindowByName(name).setSize(width, height, false);
             },
 
+            /**
+             * Maximizes a window given its name
+             * @param {String} name
+             */
             maximizeWindow: function (name) {
                 Logger.debug('maximizeWindow(%j)', name);
 
                 Utils.findWindowByName(name).maximize();
             },
 
+            /**
+             * Sets a file element's path.
+             * @param {String} xpath
+             * @param {String} path
+             */
             attachFile: function (xpath, path) {
                 Logger.debug('attachFile(%j, %j)', xpath, path);
 
@@ -331,14 +439,14 @@ module.exports = (function (Registry, Utils) {
                     xpath,
                     function (element, onDone) {
                         Registry.currWindow.webContents.debugger.sendCommand('DOM.setFileInputFiles', {
-                            nodeId: element.nodeId,
+                            nodeId: element['nodeId'],
                             files: [path]
                         }, function (error) {
                             if (Utils.isEmptyObject(error)) {
                                 onDone()
                                     .then(function () {
                                         Registry.currWindow.webContents
-                                            .executeJavaScript('Electron.syn.trigger(' + element.jsElementVarName + ', "change", {});')
+                                            .executeJavaScript('Electron.syn.trigger(' + element['jsElementVarName'] + ', "change", {});')
                                             .then(function () {
                                                 Logger.info('File was attached to input field successfully.');
                                                 Registry.executeResponse = {'result': true};
@@ -367,6 +475,10 @@ module.exports = (function (Registry, Utils) {
                 );
             },
 
+            /**
+             * Sends mouse event to the current window.
+             * @param {Object} params
+             */
             dispatchMouseEvent: function (params) {
                 Logger.debug('dispatchMouseEvent(%j)', params);
 
@@ -386,6 +498,9 @@ module.exports = (function (Registry, Utils) {
                 );
             },
 
+            /**
+             * Shuts the server down gracefully (action is not immediate).
+             */
             shutdown: function () {
                 Logger.info('Server is shutting down...');
 
