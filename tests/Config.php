@@ -40,7 +40,7 @@ class Config extends AbstractConfig
      */
     public function createDriver()
     {
-        return new ElectronDriver($this->logger, false, getenv('ELECTRON_LOG') ?: LogLevel::DEBUG);
+        return new ElectronDriver($this->logger, true, getenv('ELECTRON_LOG') ?: LogLevel::DEBUG);
     }
 
     /**

@@ -14,8 +14,8 @@
   "repository": "uuf6429/MinkElectronDriver",
   "dependencies": {
     "dnode": "~1.2.2",
-    "electron": "^1.6.6",
-    "electron-rebuild": "^1.5.7",
+    "electron": "^1.8.1",
+    "electron-rebuild": "^1.7.3",
     "syn": "^0.4.2",
     "temp": "~0.8",
     "weak": "~1.0.1",
