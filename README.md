@@ -2,7 +2,7 @@
 [![Build Status (Linux / TravisCI)](https://img.shields.io/travis/uuf6429/MinkElectronDriver/master.svg?style=flat-square)](https://travis-ci.org/uuf6429/MinkElectronDriver)
 [![Build Status (Windows / AppVeyor)](https://img.shields.io/appveyor/ci/uuf6429/MinkElectronDriver/master.svg?style=flat-square)](https://ci.appveyor.com/project/uuf6429/minkelectrondriver)
 [![Minimum PHP Version](https://img.shields.io/badge/php-%3E%3D%205.6-8892BF.svg?style=flat-square)](https://php.net/)
-[![License](https://img.shields.io/badge/license-MIT-blue.svg?style=flat-square)](https://raw.githubusercontent.com/uuf6429/MinkElectronDriver/master/LICENSE)
+[![License](https://img.shields.io/github/license/uuf6429/MinkElectronDriver.svg?style=flat-square)](https://github.com/uuf6429/MinkElectronDriver/blob/master/LICENSE)
 [![Coverage](https://img.shields.io/codecov/c/github/uuf6429/MinkElectronDriver.svg?style=flat-square)](https://codecov.io/github/uuf6429/MinkElectronDriver?branch=master)
 [![Packagist](https://img.shields.io/packagist/v/uuf6429/mink-electron-driver.svg?style=flat-square)](https://packagist.org/packages/uuf6429/mink-electron-driver)
 [![Dependency Status](https://img.shields.io/gemnasium/uuf6429/MinkElectronDriver.svg?style=flat-square)](https://beta.gemnasium.com/projects/github.com/uuf6429/MinkElectronDriver)
