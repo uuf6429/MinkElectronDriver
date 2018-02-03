@@ -94,9 +94,11 @@ class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
                     array_map(function ($line) use ($type) {
                         if (trim($line)) {
                             if (is_array($record = @json_decode($line, true))
-                                && isset($record['level'])
-                                && isset($record['message'])
-                                && isset($record['context'])
+                                && isset(
+                                    $record['level'],
+                                    $record['message'],
+                                    $record['context']
+                                )
                             ) {
                                 $this->logger->log($record['level'], $record['message'], (array)$record['context'] ?: []);
                             } else {
@@ -122,7 +124,7 @@ class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
                     $this->dnodeClient = (new Dnode())->connectToAddress($clientAddress);
                     break;
                 } catch (\Exception $ex) {
-                    if ($currTry == $maxTries) {
+                    if ($currTry === $maxTries) {
                         if ($this->electronProcess && $this->electronProcess->isRunning()) {
                             $this->electronProcess->stop();
                         }
@@ -313,7 +315,7 @@ class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
 
     /**
      * @return mixed
-     * @throws DriverException
+     * @throws \Exception
      */
     public function getCookies()
     {
@@ -710,6 +712,8 @@ class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
 
     /**
      * This will cause PHP to receive & process any output from server process.
+     *
+     * @throws \Symfony\Component\Process\Exception\LogicException
      */
     protected function flushServerOutput()
     {
@@ -765,11 +769,11 @@ class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
                 $this->electronServerAddress ?: "0.0.0.0:{$GLOBALS['med_port']}",
             ];
         } else {
-            $sid = uniqid();
+            $sid = uniqid('med', true);
 
             return [
-                $this->electronClientAddress ?: "unix:///tmp/med$sid.sock",
-                $this->electronServerAddress ?: "/tmp/med$sid.sock",
+                $this->electronClientAddress ?: "unix:///tmp/$sid.sock",
+                $this->electronServerAddress ?: "/tmp/$sid.sock",
             ];
         }
     }
@@ -778,10 +782,9 @@ class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
      * @param string $mtd
      * @param array $args
      * @return mixed
-     * @throws DriverException
      * @throws \Exception
      */
-    protected function sendAndWaitWithResult($mtd, $args = [])
+    protected function sendAndWaitWithResult($mtd, array $args = [])
     {
         try {
             if (!$this->dnodeClient) {
@@ -814,10 +817,9 @@ class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
     /**
      * @param string $mtd
      * @param array $args
-     * @throws DriverException
      * @throws \Exception
      */
-    protected function sendAndWaitWithoutResult($mtd, $args = [])
+    protected function sendAndWaitWithoutResult($mtd, array $args = [])
     {
         try {
             if (!$this->dnodeClient) {
@@ -844,11 +846,17 @@ class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
         $this->flushServerOutput();
     }
 
+    /**
+     * @throws \Exception
+     */
     protected function clearVisited()
     {
         $this->sendAndWaitWithoutResult('clearVisitedResponse');
     }
 
+    /**
+     * @throws \Exception
+     */
     protected function waitForVisited()
     {
         $this->waitForAsyncResult('getVisitedResponse');
@@ -861,9 +869,9 @@ class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
      * @param float $delay Delay between calls in seconds.
      * @param int|float $timeout Time out in seconds (0 for no timeout, default is 60).
      * @return mixed
-     * @throws DriverException
+     * @throws \Exception
      */
-    protected function waitForAsyncResult($method, $arguments = [], $delay = 0.05, $timeout = 60)
+    protected function waitForAsyncResult($method, array $arguments = [], $delay = 0.05, $timeout = 60)
     {
         $start = microtime(true);
 
@@ -884,8 +892,9 @@ class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
      * @param array <string, string> $exprArgs
      * @return mixed
      * @example $driver->evaluateScriptWithArgs('a * b', ['a' => 5], ['b' => '1 + 2']) => 15
+     * @throws \Exception
      */
-    protected function evaluateExprWithArgs($expr, $valueArgs = [], $exprArgs = [])
+    protected function evaluateExprWithArgs($expr, array $valueArgs = [], array $exprArgs = [])
     {
         return $this->evaluateScript(
             sprintf(
@@ -912,8 +921,9 @@ class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
      * @param array <string, mixed> $valueArgs
      * @param array <string, string> $exprArgs
      * @return mixed
+     * @throws \Exception
      */
-    protected function evaluateForElementByXPath($xpath, $expr, $valueArgs = [], $exprArgs = [])
+    protected function evaluateForElementByXPath($xpath, $expr, array $valueArgs = [], array $exprArgs = [])
     {
         // add expression that resolves to "element"
         $exprArgs['element'] = $this->scriptXPathEval($xpath);
@@ -927,13 +937,13 @@ class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
      * @param string $elementVarName
      * @return string
      */
-    protected function scriptSynTrigger($event, $options = [], $elementVarName = 'element')
+    protected function scriptSynTrigger($event, array $options = [], $elementVarName = 'element')
     {
         return sprintf(
             'Electron.syn.trigger(%s, %s, %s)',
             $elementVarName,
-            json_encode((string)$event),
-            json_encode((object)$options)
+            json_encode((string) $event),
+            json_encode((object) $options)
         );
     }
 
@@ -942,8 +952,9 @@ class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
      * @param string $event
      * @param array|object $options
      * @return mixed
+     * @throws \Exception
      */
-    protected function synTrigger($xpath, $event, $options = [])
+    protected function synTrigger($xpath, $event, array $options = [])
     {
         return $this->evaluateForElementByXPath($xpath, $this->scriptSynTrigger($event, $options));
     }
@@ -977,8 +988,7 @@ class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
      * @param null|float $timestamp
      * @param null|string $button
      * @param null|integer $clickCount
-
-     * @throws DriverException
+     * @throws \Exception
      *
      * @see https://chromedevtools.github.io/debugger-protocol-viewer/1-2/Input/#method-dispatchMouseEvent
      */
@@ -1017,6 +1027,7 @@ class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
     /**
      * @param string $xpath
      * @return array Array with 'x' and 'y' keys.
+     * @throws \Exception
      */
     protected function getElementCenterPos($xpath)
     {
@@ -1027,7 +1038,7 @@ class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
      * @param string $errorMessageTpl
      * @param boolean $allowRedirect
      * @return mixed
-     * @throws DriverException
+     * @throws \Exception
      */
     protected function handleExecutionResponse($errorMessageTpl, $allowRedirect = true)
     {
@@ -1042,7 +1053,7 @@ class ElectronDriver extends CoreDriver implements Log\LoggerAwareInterface
             );
         }
 
-        if ($allowRedirect && isset($result['redirect']) && $result['redirect']) {
+        if ($allowRedirect && !empty($result['redirect'])) {
             $this->waitForVisited();
         }
 

@@ -58,7 +58,7 @@ class FileLogger extends AbstractLogger
         }
 
         if (isset($context['logIndent'])) {
-            $indent += intval($context['logIndent']);
+            $indent += (int) $context['logIndent'];
             unset($context['logIndent']);
         }
 

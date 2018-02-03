@@ -14,9 +14,10 @@
     "behat/mink": "~1.7",
     "behat/mink-extension": "^2.2",
     "behat/behat": "~3.0",
-    "symfony/process": "^3.0",
+    "symfony/process": "^3.0 || ^4.0",
     "uuf6429/dnode-php-sync-client": "^2.0",
-    "eloquent/composer-npm-bridge": "^3.0.1"
+    "eloquent/composer-npm-bridge": "^3.0 || ^4.0",
+    "roave/security-advisories": "dev-master"
   },
   "require-dev": {
     "phpunit/phpunit": "^5.7",

@@ -21,6 +21,9 @@ abstract class DriverTestCase extends TestCase
         $this->driver->start();
     }
 
+    /**
+     * @throws \Behat\Mink\Exception\DriverException
+     */
     public function tearDown()
     {
         if ($this->driver) {
@@ -32,6 +35,8 @@ abstract class DriverTestCase extends TestCase
 
     /**
      * @param \Exception|\Throwable $e
+     *
+     * @throws \Exception|\Throwable
      */
     public function onNotSuccessfulTest($e)
     {

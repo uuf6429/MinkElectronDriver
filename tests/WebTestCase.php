@@ -17,12 +17,12 @@ abstract class WebTestCase extends DriverTestCase
     {
         parent::setUpBeforeClass();
 
-        self::startServer();
+        static::startServer();
     }
 
     public static function tearDownAfterClass()
     {
-        self::stopServer();
+        static::stopServer();
 
         parent::tearDownAfterClass();
     }
@@ -37,7 +37,7 @@ abstract class WebTestCase extends DriverTestCase
             (DIRECTORY_SEPARATOR === '/' ? 'exec ' : '') . $cmd,
             __DIR__ . DIRECTORY_SEPARATOR . 'web'
         );
-        static::$server->inheritEnvironmentVariables(true);
+        static::$server->inheritEnvironmentVariables();
         static::$server->setEnv(['TEST_SERVER' => '1']);
         static::$server->start();
 
