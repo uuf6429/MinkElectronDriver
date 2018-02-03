@@ -5,6 +5,8 @@
 [![License](https://img.shields.io/badge/license-MIT-blue.svg?style=flat-square)](https://raw.githubusercontent.com/uuf6429/MinkElectronDriver/master/LICENSE)
 [![Coverage](https://img.shields.io/codecov/c/github/uuf6429/MinkElectronDriver.svg?style=flat-square)](https://codecov.io/github/uuf6429/MinkElectronDriver?branch=master)
 [![Packagist](https://img.shields.io/packagist/v/uuf6429/mink-electron-driver.svg?style=flat-square)](https://packagist.org/packages/uuf6429/mink-electron-driver)
+[![Dependency Status](https://img.shields.io/gemnasium/uuf6429/MinkElectronDriver.svg?style=flat-square)](https://beta.gemnasium.com/projects/github.com/uuf6429/MinkElectronDriver)
+
 
 Mink Electron Driver (replaces [JsonWireProtocol](https://github.com/SeleniumHQ/selenium/wiki/JsonWireProtocol) and [PhantomJS](http://phantomjs.org/) with [Electron](http://electron.atom.io/))
 
